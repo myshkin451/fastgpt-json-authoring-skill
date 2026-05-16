@@ -1,0 +1,4 @@
+interface:
+  display_name: "FastGPT JSON Authoring"
+  short_description: "Author and validate importable FastGPT canvas JSON"
+  default_prompt: "Use $fastgpt-json-authoring to generate or validate a FastGPT app JSON for import."

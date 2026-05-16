@@ -1,0 +1,69 @@
+{
+  "chatConfig": {
+    "welcomeText": "Hello",
+    "variables": [
+      {
+        "type": "internal",
+        "key": "varLogin",
+        "label": "login_name",
+        "valueType": "string",
+        "description": "",
+        "required": false,
+        "defaultValue": "",
+        "icon": "core/workflow/inputType/internal"
+      }
+    ],
+    "entryPoints": [],
+    "autoExecute": {
+      "open": true
+    }
+  },
+  "nodes": [
+    {
+      "nodeId": "S00",
+      "name": "S00 Workflow start",
+      "intro": "",
+      "avatar": "core/workflow/template/workflowStart",
+      "flowNodeType": "workflowStart",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "outUserQuestion",
+          "key": "userChatInput",
+          "label": "User question",
+          "valueType": "string"
+        }
+      ]
+    },
+    {
+      "nodeId": "T00",
+      "name": "T00 Reply",
+      "intro": "",
+      "avatar": "core/workflow/template/answerNode",
+      "flowNodeType": "answerNode",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "inputs": [
+        {
+          "key": "text",
+          "value": "Hello {{$VARIABLE_NODE_ID.varLogin$}}"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "source": "S00",
+      "target": "T00",
+      "sourceHandle": "S00-source-right",
+      "targetHandle": "T00-target-left"
+    }
+  ]
+}

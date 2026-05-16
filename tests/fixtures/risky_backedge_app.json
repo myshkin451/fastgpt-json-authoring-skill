@@ -1,0 +1,148 @@
+{
+  "chatConfig": {
+    "welcomeText": "Demo",
+    "variables": [],
+    "entryPoints": [
+      {
+        "id": "visit",
+        "name": "Visit"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "nodeId": "S00",
+      "name": "S00 Workflow start",
+      "flowNodeType": "workflowStart",
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "nodeId": "H00",
+      "name": "H00 HTTP with catch enabled",
+      "flowNodeType": "httpRequest468",
+      "catchError": true,
+      "inputs": [
+        {
+          "key": "system_httpMethod",
+          "value": "POST"
+        },
+        {
+          "key": "system_httpReqUrl",
+          "value": "https://example.invalid/api"
+        },
+        {
+          "key": "system_httpHeader",
+          "value": [
+            {
+              "key": "X-Agent-Token",
+              "value": "plain-secret"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        {
+          "key": "system_httpContentType",
+          "value": "json"
+        },
+        {
+          "key": "system_httpJsonBody",
+          "value": "{}"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "httpSuccess",
+          "key": "success",
+          "valueType": "boolean"
+        },
+        {
+          "id": "httpCode",
+          "key": "code",
+          "valueType": "string"
+        }
+      ]
+    },
+    {
+      "nodeId": "G00",
+      "name": "G00 Menu gate",
+      "flowNodeType": "userSelect",
+      "inputs": [
+        {
+          "key": "userSelectOptions",
+          "value": [
+            {
+              "key": "visit",
+              "label": "Visit"
+            }
+          ]
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "nodeId": "A08",
+      "name": "A08 Knowledge search",
+      "flowNodeType": "datasetSearchNode",
+      "inputs": [
+        {
+          "key": "datasets",
+          "value": []
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "nodeId": "N00",
+      "name": "N00 Next action",
+      "flowNodeType": "userSelect",
+      "inputs": [
+        {
+          "key": "userSelectOptions",
+          "value": [
+            {
+              "key": "switch",
+              "label": "Switch"
+            }
+          ]
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "source": "S00",
+      "target": "H00",
+      "sourceHandle": "S00-source-right",
+      "targetHandle": "H00-target-left"
+    },
+    {
+      "source": "H00",
+      "target": "G00",
+      "sourceHandle": "H00-source-right",
+      "targetHandle": "G00-target-left"
+    },
+    {
+      "source": "G00",
+      "target": "A08",
+      "sourceHandle": "G00-source-visit",
+      "targetHandle": "A08-target-left"
+    },
+    {
+      "source": "A08",
+      "target": "N00",
+      "sourceHandle": "A08-source-right",
+      "targetHandle": "N00-target-left"
+    },
+    {
+      "source": "N00",
+      "target": "G00",
+      "sourceHandle": "N00-source-switch",
+      "targetHandle": "G00-target-left"
+    }
+  ]
+}

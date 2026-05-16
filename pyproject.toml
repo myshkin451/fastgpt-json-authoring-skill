@@ -1,0 +1,12 @@
+[project]
+name = "fastgpt-json-authoring-skill"
+version = "0.1.0"
+description = "Codex skill for authoring and validating FastGPT exported canvas JSON"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Myshkin451" }]
+keywords = ["codex", "skill", "fastgpt", "json", "workflow"]
+
+[tool.unittest]
+start-dir = "tests"
