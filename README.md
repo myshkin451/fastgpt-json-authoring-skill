@@ -40,6 +40,10 @@ python3 -m py_compile skills/fastgpt-json-authoring/scripts/fastgpt_canvas_inspe
 
 No third-party Python dependencies are required.
 
+## Example
+
+`examples/hr-recruiting-assistant.json` is a small generated FastGPT import candidate with a workflow menu and four HR branches: JD drafting, resume screening, interview questions, and candidate outreach.
+
 ## Notes
 
 FastGPT export schemas can change across versions. For best results, start from a seed export produced by the target FastGPT environment and clone the exact node shapes that app version expects.

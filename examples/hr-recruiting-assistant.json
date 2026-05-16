@@ -1,0 +1,1863 @@
+{
+  "nodes": [
+    {
+      "nodeId": "userGuide",
+      "name": "common:core.module.template.system_config",
+      "intro": "common:core.module.template.system_config_info",
+      "avatar": "core/workflow/template/systemConfig",
+      "flowNodeType": "userGuide",
+      "position": {
+        "x": -900,
+        "y": -260
+      },
+      "version": "481",
+      "inputs": [
+        {
+          "key": "welcomeText",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "valueType": "string",
+          "label": "core.app.Welcome Text",
+          "value": "Hi, I am your HR recruiting assistant. Choose a workflow to draft a JD, screen a resume, create interview questions, or write candidate outreach."
+        },
+        {
+          "key": "variables",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "valueType": "any",
+          "label": "core.app.Chat Variable",
+          "value": []
+        },
+        {
+          "key": "questionGuide",
+          "valueType": "any",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "core.app.Question Guide",
+          "value": {
+            "open": false
+          }
+        },
+        {
+          "key": "tts",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "valueType": "any",
+          "label": "",
+          "value": {
+            "type": "web"
+          }
+        },
+        {
+          "key": "whisper",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "valueType": "any",
+          "label": "",
+          "value": {
+            "open": false,
+            "autoSend": false,
+            "autoTTSResponse": false
+          }
+        },
+        {
+          "key": "scheduleTrigger",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "valueType": "any",
+          "label": "",
+          "value": null
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "nodeId": "START",
+      "name": "workflowStart",
+      "intro": "",
+      "avatar": "core/workflow/template/workflowStart",
+      "flowNodeType": "workflowStart",
+      "position": {
+        "x": -900,
+        "y": 80
+      },
+      "version": "481",
+      "inputs": [
+        {
+          "key": "userChatInput",
+          "renderTypeList": [
+            "reference",
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "workflow:user_question",
+          "required": true,
+          "toolDescription": "用户问题",
+          "debugLabel": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "userChatInput",
+          "key": "userChatInput",
+          "label": "common:core.module.input.label.user question",
+          "type": "static",
+          "valueType": "string",
+          "description": ""
+        },
+        {
+          "id": "userFiles",
+          "key": "userFiles",
+          "label": "app:workflow.user_file_input",
+          "description": "app:workflow.user_file_input_desc",
+          "type": "static",
+          "valueType": "arrayString"
+        }
+      ]
+    },
+    {
+      "nodeId": "MENU",
+      "name": "Recruiting workflow menu",
+      "intro": "该模块可配置多个选项，以供对话时选择。不同选项可导向不同工作流支线",
+      "avatar": "core/workflow/template/userSelect",
+      "flowNodeType": "userSelect",
+      "position": {
+        "x": -560,
+        "y": 80
+      },
+      "inputs": [
+        {
+          "key": "description",
+          "renderTypeList": [
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "app:workflow.select_description",
+          "description": "app:workflow.select_description_tip",
+          "placeholder": "app:workflow.select_description_placeholder",
+          "value": "What would you like to create?",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "renderTypeList": [
+            "custom",
+            "reference"
+          ],
+          "selectedTypeIndex": 0,
+          "valueType": "arrayString",
+          "label": "app:workflow.select_options_mode_label",
+          "key": "userSelectOptions",
+          "value": [
+            {
+              "value": "Draft a job description",
+              "key": "jd_drafting"
+            },
+            {
+              "value": "Screen a resume",
+              "key": "resume_screening"
+            },
+            {
+              "value": "Generate interview questions",
+              "key": "interview_questions"
+            },
+            {
+              "value": "Draft candidate outreach",
+              "key": "candidate_outreach"
+            }
+          ],
+          "debugLabel": "",
+          "toolDescription": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "selectResult",
+          "key": "selectResult",
+          "required": true,
+          "label": "app:workflow.select_result",
+          "valueType": "string",
+          "type": "static",
+          "valueDesc": "",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "nodeId": "FORM_JD",
+      "name": "JD drafting input",
+      "intro": "该模块可以配置多种输入，引导用户输入特定内容。",
+      "avatar": "core/workflow/template/formInput",
+      "flowNodeType": "formInput",
+      "position": {
+        "x": -180,
+        "y": -360
+      },
+      "inputs": [
+        {
+          "key": "description",
+          "renderTypeList": [
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "app:workflow.select_description",
+          "description": "app:workflow.input_description_tip",
+          "placeholder": "app:workflow.form_input_description_placeholder",
+          "value": "Provide the role basics for the job description.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "renderTypeList": [
+            "custom"
+          ],
+          "valueType": "any",
+          "label": "",
+          "key": "userInputForms",
+          "value": [
+            {
+              "type": "input",
+              "key": "role_title",
+              "label": "Role title",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "team_context",
+              "label": "Team context",
+              "valueType": "string",
+              "description": "Hiring team, reporting line, product area, or business context.",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "must_have_skills",
+              "label": "Must-have skills",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "nice_to_have_skills",
+              "label": "Nice-to-have skills",
+              "valueType": "string",
+              "description": "",
+              "required": false,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "seniority_level",
+              "label": "Seniority level",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "location_work_model",
+              "label": "Location and work model",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            }
+          ],
+          "debugLabel": "",
+          "toolDescription": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "formInputResult",
+          "key": "formInputResult",
+          "required": true,
+          "label": "workflow:form_input_result",
+          "description": "A complete object containing all submitted form values",
+          "valueType": "object",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "role_title",
+          "valueType": "string",
+          "key": "role_title",
+          "label": "Role title",
+          "type": "static"
+        },
+        {
+          "id": "team_context",
+          "valueType": "string",
+          "key": "team_context",
+          "label": "Team context",
+          "type": "static"
+        },
+        {
+          "id": "must_have_skills",
+          "valueType": "string",
+          "key": "must_have_skills",
+          "label": "Must-have skills",
+          "type": "static"
+        },
+        {
+          "id": "nice_to_have_skills",
+          "valueType": "string",
+          "key": "nice_to_have_skills",
+          "label": "Nice-to-have skills",
+          "type": "static"
+        },
+        {
+          "id": "seniority_level",
+          "valueType": "string",
+          "key": "seniority_level",
+          "label": "Seniority level",
+          "type": "static"
+        },
+        {
+          "id": "location_work_model",
+          "valueType": "string",
+          "key": "location_work_model",
+          "label": "Location and work model",
+          "type": "static"
+        }
+      ]
+    },
+    {
+      "nodeId": "CHAT_JD",
+      "name": "Generate JD draft",
+      "intro": "AI 大模型对话",
+      "avatar": "core/workflow/template/aiChat",
+      "flowNodeType": "chatNode",
+      "showStatus": true,
+      "position": {
+        "x": 300,
+        "y": -360
+      },
+      "version": "4.9.7",
+      "inputs": [
+        {
+          "key": "model",
+          "renderTypeList": [
+            "settingLLMModel",
+            "reference"
+          ],
+          "label": "common:core.module.input.label.aiModel",
+          "valueType": "string",
+          "value": "Qwen3-Next-80B-A3B-Instruct-FP8",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "temperature",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "maxToken",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "isResponseAnswerText",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "value": true,
+          "valueType": "boolean",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatQuoteRole",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "value": "system",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quoteTemplate",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quotePrompt",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatVision",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatReasoning",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatTopP",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatStopSign",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatResponseFormat",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatJsonSchema",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "systemPrompt",
+          "renderTypeList": [
+            "textarea",
+            "reference"
+          ],
+          "maxLength": 100000,
+          "isRichText": true,
+          "valueType": "string",
+          "label": "common:core.ai.Prompt",
+          "description": "common:core.app.tip.systemPromptTip",
+          "placeholder": "common:core.app.tip.chatNodeSystemPromptTip",
+          "value": "You are an experienced HR recruiting partner. Use only the structured input below and do not invent compensation, legal terms, or company policies.\n\nRole title: {{$FORM_JD.role_title$}}\nTeam context: {{$FORM_JD.team_context$}}\nMust-have skills: {{$FORM_JD.must_have_skills$}}\nNice-to-have skills: {{$FORM_JD.nice_to_have_skills$}}\nSeniority level: {{$FORM_JD.seniority_level$}}\nLocation and work model: {{$FORM_JD.location_work_model$}}\n\nCreate a clear job description with these sections:\n1. Role summary\n2. Key responsibilities\n3. Required qualifications\n4. Preferred qualifications\n5. Success profile\n6. Interview focus areas\n7. Inclusive closing note\nKeep the writing concrete, neutral, and candidate-friendly.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "history",
+          "renderTypeList": [
+            "numberInput",
+            "reference"
+          ],
+          "valueType": "chatHistory",
+          "label": "common:core.module.input.label.chat history",
+          "description": "workflow:max_dialog_rounds",
+          "required": true,
+          "min": 0,
+          "max": 50,
+          "value": 4,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "fileUrlList",
+          "renderTypeList": [
+            "reference",
+            "input"
+          ],
+          "label": "app:workflow.user_file_input",
+          "debugLabel": "文件链接",
+          "description": "app:workflow.user_file_input_desc",
+          "valueType": "arrayString",
+          "value": [
+            [
+              "START",
+              "userFiles"
+            ]
+          ],
+          "toolDescription": ""
+        },
+        {
+          "key": "userChatInput",
+          "renderTypeList": [
+            "reference",
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "workflow:user_question",
+          "toolDescription": "用户问题",
+          "required": true,
+          "value": [
+            "FORM_JD",
+            "formInputResult"
+          ],
+          "debugLabel": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "history",
+          "key": "history",
+          "required": true,
+          "label": "common:core.module.output.label.New context",
+          "description": "将本次回复内容拼接上历史记录，作为新的上下文返回",
+          "valueType": "chatHistory",
+          "valueDesc": "{\n  obj: System | Human | AI;\n  value: string;\n}[]",
+          "type": "static"
+        },
+        {
+          "id": "answerText",
+          "key": "answerText",
+          "required": true,
+          "label": "common:core.module.output.label.Ai response content",
+          "description": "将在 stream 回复完毕后触发",
+          "valueType": "string",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "reasoningText",
+          "key": "reasoningText",
+          "required": false,
+          "label": "workflow:reasoning_text",
+          "valueType": "string",
+          "type": "static",
+          "invalid": true,
+          "valueDesc": "",
+          "description": ""
+        },
+        {
+          "id": "system_error_text",
+          "key": "system_error_text",
+          "type": "error",
+          "valueType": "string",
+          "label": "workflow:error_text",
+          "valueDesc": "",
+          "description": ""
+        }
+      ],
+      "catchError": false
+    },
+    {
+      "nodeId": "FORM_RESUME",
+      "name": "Resume screening input",
+      "intro": "该模块可以配置多种输入，引导用户输入特定内容。",
+      "avatar": "core/workflow/template/formInput",
+      "flowNodeType": "formInput",
+      "position": {
+        "x": -180,
+        "y": -80
+      },
+      "inputs": [
+        {
+          "key": "description",
+          "renderTypeList": [
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "app:workflow.select_description",
+          "description": "app:workflow.input_description_tip",
+          "placeholder": "app:workflow.form_input_description_placeholder",
+          "value": "Paste the job requirements and candidate resume for screening.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "renderTypeList": [
+            "custom"
+          ],
+          "valueType": "any",
+          "label": "",
+          "key": "userInputForms",
+          "value": [
+            {
+              "type": "textarea",
+              "key": "job_requirements",
+              "label": "Job requirements",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "resume_text",
+              "label": "Resume text",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "screening_priority",
+              "label": "Screening priority",
+              "valueType": "string",
+              "description": "For example: technical depth, leadership, domain fit, salary risk.",
+              "required": true,
+              "defaultValue": ""
+            }
+          ],
+          "debugLabel": "",
+          "toolDescription": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "formInputResult",
+          "key": "formInputResult",
+          "required": true,
+          "label": "workflow:form_input_result",
+          "description": "A complete object containing all submitted form values",
+          "valueType": "object",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "job_requirements",
+          "valueType": "string",
+          "key": "job_requirements",
+          "label": "Job requirements",
+          "type": "static"
+        },
+        {
+          "id": "resume_text",
+          "valueType": "string",
+          "key": "resume_text",
+          "label": "Resume text",
+          "type": "static"
+        },
+        {
+          "id": "screening_priority",
+          "valueType": "string",
+          "key": "screening_priority",
+          "label": "Screening priority",
+          "type": "static"
+        }
+      ]
+    },
+    {
+      "nodeId": "CHAT_RESUME",
+      "name": "Generate resume screen",
+      "intro": "AI 大模型对话",
+      "avatar": "core/workflow/template/aiChat",
+      "flowNodeType": "chatNode",
+      "showStatus": true,
+      "position": {
+        "x": 300,
+        "y": -80
+      },
+      "version": "4.9.7",
+      "inputs": [
+        {
+          "key": "model",
+          "renderTypeList": [
+            "settingLLMModel",
+            "reference"
+          ],
+          "label": "common:core.module.input.label.aiModel",
+          "valueType": "string",
+          "value": "Qwen3-Next-80B-A3B-Instruct-FP8",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "temperature",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "maxToken",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "isResponseAnswerText",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "value": true,
+          "valueType": "boolean",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatQuoteRole",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "value": "system",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quoteTemplate",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quotePrompt",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatVision",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatReasoning",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatTopP",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatStopSign",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatResponseFormat",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatJsonSchema",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "systemPrompt",
+          "renderTypeList": [
+            "textarea",
+            "reference"
+          ],
+          "maxLength": 100000,
+          "isRichText": true,
+          "valueType": "string",
+          "label": "common:core.ai.Prompt",
+          "description": "common:core.app.tip.systemPromptTip",
+          "placeholder": "common:core.app.tip.chatNodeSystemPromptTip",
+          "value": "You are an HR resume screening assistant. Base your assessment only on the pasted job requirements and resume. Do not infer protected characteristics or make unsupported claims.\n\nJob requirements: {{$FORM_RESUME.job_requirements$}}\nResume text: {{$FORM_RESUME.resume_text$}}\nScreening priority: {{$FORM_RESUME.screening_priority$}}\n\nReturn:\n1. Overall fit: Strong / Possible / Weak\n2. Evidence-backed match summary\n3. Must-have requirement coverage table\n4. Strengths\n5. Gaps or concerns\n6. Suggested recruiter follow-up questions\n7. Recommendation for next step\nUse cautious language where evidence is missing.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "history",
+          "renderTypeList": [
+            "numberInput",
+            "reference"
+          ],
+          "valueType": "chatHistory",
+          "label": "common:core.module.input.label.chat history",
+          "description": "workflow:max_dialog_rounds",
+          "required": true,
+          "min": 0,
+          "max": 50,
+          "value": 4,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "fileUrlList",
+          "renderTypeList": [
+            "reference",
+            "input"
+          ],
+          "label": "app:workflow.user_file_input",
+          "debugLabel": "文件链接",
+          "description": "app:workflow.user_file_input_desc",
+          "valueType": "arrayString",
+          "value": [
+            [
+              "START",
+              "userFiles"
+            ]
+          ],
+          "toolDescription": ""
+        },
+        {
+          "key": "userChatInput",
+          "renderTypeList": [
+            "reference",
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "workflow:user_question",
+          "toolDescription": "用户问题",
+          "required": true,
+          "value": [
+            "FORM_RESUME",
+            "formInputResult"
+          ],
+          "debugLabel": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "history",
+          "key": "history",
+          "required": true,
+          "label": "common:core.module.output.label.New context",
+          "description": "将本次回复内容拼接上历史记录，作为新的上下文返回",
+          "valueType": "chatHistory",
+          "valueDesc": "{\n  obj: System | Human | AI;\n  value: string;\n}[]",
+          "type": "static"
+        },
+        {
+          "id": "answerText",
+          "key": "answerText",
+          "required": true,
+          "label": "common:core.module.output.label.Ai response content",
+          "description": "将在 stream 回复完毕后触发",
+          "valueType": "string",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "reasoningText",
+          "key": "reasoningText",
+          "required": false,
+          "label": "workflow:reasoning_text",
+          "valueType": "string",
+          "type": "static",
+          "invalid": true,
+          "valueDesc": "",
+          "description": ""
+        },
+        {
+          "id": "system_error_text",
+          "key": "system_error_text",
+          "type": "error",
+          "valueType": "string",
+          "label": "workflow:error_text",
+          "valueDesc": "",
+          "description": ""
+        }
+      ],
+      "catchError": false
+    },
+    {
+      "nodeId": "FORM_INTERVIEW",
+      "name": "Interview question input",
+      "intro": "该模块可以配置多种输入，引导用户输入特定内容。",
+      "avatar": "core/workflow/template/formInput",
+      "flowNodeType": "formInput",
+      "position": {
+        "x": -180,
+        "y": 220
+      },
+      "inputs": [
+        {
+          "key": "description",
+          "renderTypeList": [
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "app:workflow.select_description",
+          "description": "app:workflow.input_description_tip",
+          "placeholder": "app:workflow.form_input_description_placeholder",
+          "value": "Provide the interview context and competencies to assess.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "renderTypeList": [
+            "custom"
+          ],
+          "valueType": "any",
+          "label": "",
+          "key": "userInputForms",
+          "value": [
+            {
+              "type": "input",
+              "key": "role_title",
+              "label": "Role title",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "interview_stage",
+              "label": "Interview stage",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "competencies",
+              "label": "Competencies to assess",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "candidate_background",
+              "label": "Candidate background",
+              "valueType": "string",
+              "description": "",
+              "required": false,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "interview_duration",
+              "label": "Interview duration",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            }
+          ],
+          "debugLabel": "",
+          "toolDescription": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "formInputResult",
+          "key": "formInputResult",
+          "required": true,
+          "label": "workflow:form_input_result",
+          "description": "A complete object containing all submitted form values",
+          "valueType": "object",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "role_title",
+          "valueType": "string",
+          "key": "role_title",
+          "label": "Role title",
+          "type": "static"
+        },
+        {
+          "id": "interview_stage",
+          "valueType": "string",
+          "key": "interview_stage",
+          "label": "Interview stage",
+          "type": "static"
+        },
+        {
+          "id": "competencies",
+          "valueType": "string",
+          "key": "competencies",
+          "label": "Competencies to assess",
+          "type": "static"
+        },
+        {
+          "id": "candidate_background",
+          "valueType": "string",
+          "key": "candidate_background",
+          "label": "Candidate background",
+          "type": "static"
+        },
+        {
+          "id": "interview_duration",
+          "valueType": "string",
+          "key": "interview_duration",
+          "label": "Interview duration",
+          "type": "static"
+        }
+      ]
+    },
+    {
+      "nodeId": "CHAT_INTERVIEW",
+      "name": "Generate interview questions",
+      "intro": "AI 大模型对话",
+      "avatar": "core/workflow/template/aiChat",
+      "flowNodeType": "chatNode",
+      "showStatus": true,
+      "position": {
+        "x": 300,
+        "y": 220
+      },
+      "version": "4.9.7",
+      "inputs": [
+        {
+          "key": "model",
+          "renderTypeList": [
+            "settingLLMModel",
+            "reference"
+          ],
+          "label": "common:core.module.input.label.aiModel",
+          "valueType": "string",
+          "value": "Qwen3-Next-80B-A3B-Instruct-FP8",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "temperature",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "maxToken",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "isResponseAnswerText",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "value": true,
+          "valueType": "boolean",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatQuoteRole",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "value": "system",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quoteTemplate",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quotePrompt",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatVision",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatReasoning",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatTopP",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatStopSign",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatResponseFormat",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatJsonSchema",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "systemPrompt",
+          "renderTypeList": [
+            "textarea",
+            "reference"
+          ],
+          "maxLength": 100000,
+          "isRichText": true,
+          "valueType": "string",
+          "label": "common:core.ai.Prompt",
+          "description": "common:core.app.tip.systemPromptTip",
+          "placeholder": "common:core.app.tip.chatNodeSystemPromptTip",
+          "value": "You are an interview design assistant. Create structured, role-relevant questions from the supplied context.\n\nRole title: {{$FORM_INTERVIEW.role_title$}}\nInterview stage: {{$FORM_INTERVIEW.interview_stage$}}\nCompetencies: {{$FORM_INTERVIEW.competencies$}}\nCandidate background: {{$FORM_INTERVIEW.candidate_background$}}\nInterview duration: {{$FORM_INTERVIEW.interview_duration$}}\n\nReturn:\n1. Interview plan by time block\n2. Opening question\n3. Competency questions with what-good-looks-like signals\n4. Follow-up probes\n5. Practical exercise or scenario, if suitable\n6. Red flags to listen for\n7. Scorecard rubric\nAvoid discriminatory, personal, or legally sensitive questions.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "history",
+          "renderTypeList": [
+            "numberInput",
+            "reference"
+          ],
+          "valueType": "chatHistory",
+          "label": "common:core.module.input.label.chat history",
+          "description": "workflow:max_dialog_rounds",
+          "required": true,
+          "min": 0,
+          "max": 50,
+          "value": 4,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "fileUrlList",
+          "renderTypeList": [
+            "reference",
+            "input"
+          ],
+          "label": "app:workflow.user_file_input",
+          "debugLabel": "文件链接",
+          "description": "app:workflow.user_file_input_desc",
+          "valueType": "arrayString",
+          "value": [
+            [
+              "START",
+              "userFiles"
+            ]
+          ],
+          "toolDescription": ""
+        },
+        {
+          "key": "userChatInput",
+          "renderTypeList": [
+            "reference",
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "workflow:user_question",
+          "toolDescription": "用户问题",
+          "required": true,
+          "value": [
+            "FORM_INTERVIEW",
+            "formInputResult"
+          ],
+          "debugLabel": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "history",
+          "key": "history",
+          "required": true,
+          "label": "common:core.module.output.label.New context",
+          "description": "将本次回复内容拼接上历史记录，作为新的上下文返回",
+          "valueType": "chatHistory",
+          "valueDesc": "{\n  obj: System | Human | AI;\n  value: string;\n}[]",
+          "type": "static"
+        },
+        {
+          "id": "answerText",
+          "key": "answerText",
+          "required": true,
+          "label": "common:core.module.output.label.Ai response content",
+          "description": "将在 stream 回复完毕后触发",
+          "valueType": "string",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "reasoningText",
+          "key": "reasoningText",
+          "required": false,
+          "label": "workflow:reasoning_text",
+          "valueType": "string",
+          "type": "static",
+          "invalid": true,
+          "valueDesc": "",
+          "description": ""
+        },
+        {
+          "id": "system_error_text",
+          "key": "system_error_text",
+          "type": "error",
+          "valueType": "string",
+          "label": "workflow:error_text",
+          "valueDesc": "",
+          "description": ""
+        }
+      ],
+      "catchError": false
+    },
+    {
+      "nodeId": "FORM_OUTREACH",
+      "name": "Candidate outreach input",
+      "intro": "该模块可以配置多种输入，引导用户输入特定内容。",
+      "avatar": "core/workflow/template/formInput",
+      "flowNodeType": "formInput",
+      "position": {
+        "x": -180,
+        "y": 520
+      },
+      "inputs": [
+        {
+          "key": "description",
+          "renderTypeList": [
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "app:workflow.select_description",
+          "description": "app:workflow.input_description_tip",
+          "placeholder": "app:workflow.form_input_description_placeholder",
+          "value": "Provide candidate and role context for an outreach message.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "renderTypeList": [
+            "custom"
+          ],
+          "valueType": "any",
+          "label": "",
+          "key": "userInputForms",
+          "value": [
+            {
+              "type": "input",
+              "key": "candidate_name",
+              "label": "Candidate name",
+              "valueType": "string",
+              "description": "",
+              "required": false,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "candidate_highlights",
+              "label": "Candidate highlights",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "role_title",
+              "label": "Role title",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "textarea",
+              "key": "company_pitch",
+              "label": "Company pitch",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "message_channel",
+              "label": "Message channel",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            },
+            {
+              "type": "input",
+              "key": "tone",
+              "label": "Tone",
+              "valueType": "string",
+              "description": "",
+              "required": true,
+              "defaultValue": ""
+            }
+          ],
+          "debugLabel": "",
+          "toolDescription": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "formInputResult",
+          "key": "formInputResult",
+          "required": true,
+          "label": "workflow:form_input_result",
+          "description": "A complete object containing all submitted form values",
+          "valueType": "object",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "candidate_name",
+          "valueType": "string",
+          "key": "candidate_name",
+          "label": "Candidate name",
+          "type": "static"
+        },
+        {
+          "id": "candidate_highlights",
+          "valueType": "string",
+          "key": "candidate_highlights",
+          "label": "Candidate highlights",
+          "type": "static"
+        },
+        {
+          "id": "role_title",
+          "valueType": "string",
+          "key": "role_title",
+          "label": "Role title",
+          "type": "static"
+        },
+        {
+          "id": "company_pitch",
+          "valueType": "string",
+          "key": "company_pitch",
+          "label": "Company pitch",
+          "type": "static"
+        },
+        {
+          "id": "message_channel",
+          "valueType": "string",
+          "key": "message_channel",
+          "label": "Message channel",
+          "type": "static"
+        },
+        {
+          "id": "tone",
+          "valueType": "string",
+          "key": "tone",
+          "label": "Tone",
+          "type": "static"
+        }
+      ]
+    },
+    {
+      "nodeId": "CHAT_OUTREACH",
+      "name": "Generate outreach draft",
+      "intro": "AI 大模型对话",
+      "avatar": "core/workflow/template/aiChat",
+      "flowNodeType": "chatNode",
+      "showStatus": true,
+      "position": {
+        "x": 300,
+        "y": 520
+      },
+      "version": "4.9.7",
+      "inputs": [
+        {
+          "key": "model",
+          "renderTypeList": [
+            "settingLLMModel",
+            "reference"
+          ],
+          "label": "common:core.module.input.label.aiModel",
+          "valueType": "string",
+          "value": "Qwen3-Next-80B-A3B-Instruct-FP8",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "temperature",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "maxToken",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "isResponseAnswerText",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "value": true,
+          "valueType": "boolean",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatQuoteRole",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "value": "system",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quoteTemplate",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "quotePrompt",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatVision",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatReasoning",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "boolean",
+          "value": true,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatTopP",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "number",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatStopSign",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatResponseFormat",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "aiChatJsonSchema",
+          "renderTypeList": [
+            "hidden"
+          ],
+          "label": "",
+          "valueType": "string",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "systemPrompt",
+          "renderTypeList": [
+            "textarea",
+            "reference"
+          ],
+          "maxLength": 100000,
+          "isRichText": true,
+          "valueType": "string",
+          "label": "common:core.ai.Prompt",
+          "description": "common:core.app.tip.systemPromptTip",
+          "placeholder": "common:core.app.tip.chatNodeSystemPromptTip",
+          "value": "You are a recruiter writing respectful candidate outreach. Use the provided context only. Do not overstate role details or make guarantees.\n\nCandidate name: {{$FORM_OUTREACH.candidate_name$}}\nCandidate highlights: {{$FORM_OUTREACH.candidate_highlights$}}\nRole title: {{$FORM_OUTREACH.role_title$}}\nCompany pitch: {{$FORM_OUTREACH.company_pitch$}}\nMessage channel: {{$FORM_OUTREACH.message_channel$}}\nTone: {{$FORM_OUTREACH.tone$}}\n\nDraft:\n1. Subject line or opening line\n2. Main outreach message\n3. Short follow-up message\n4. Personalization notes the recruiter can verify before sending\nKeep it concise, warm, and easy to customize.",
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "history",
+          "renderTypeList": [
+            "numberInput",
+            "reference"
+          ],
+          "valueType": "chatHistory",
+          "label": "common:core.module.input.label.chat history",
+          "description": "workflow:max_dialog_rounds",
+          "required": true,
+          "min": 0,
+          "max": 50,
+          "value": 4,
+          "debugLabel": "",
+          "toolDescription": ""
+        },
+        {
+          "key": "fileUrlList",
+          "renderTypeList": [
+            "reference",
+            "input"
+          ],
+          "label": "app:workflow.user_file_input",
+          "debugLabel": "文件链接",
+          "description": "app:workflow.user_file_input_desc",
+          "valueType": "arrayString",
+          "value": [
+            [
+              "START",
+              "userFiles"
+            ]
+          ],
+          "toolDescription": ""
+        },
+        {
+          "key": "userChatInput",
+          "renderTypeList": [
+            "reference",
+            "textarea"
+          ],
+          "valueType": "string",
+          "label": "workflow:user_question",
+          "toolDescription": "用户问题",
+          "required": true,
+          "value": [
+            "FORM_OUTREACH",
+            "formInputResult"
+          ],
+          "debugLabel": ""
+        }
+      ],
+      "outputs": [
+        {
+          "id": "history",
+          "key": "history",
+          "required": true,
+          "label": "common:core.module.output.label.New context",
+          "description": "将本次回复内容拼接上历史记录，作为新的上下文返回",
+          "valueType": "chatHistory",
+          "valueDesc": "{\n  obj: System | Human | AI;\n  value: string;\n}[]",
+          "type": "static"
+        },
+        {
+          "id": "answerText",
+          "key": "answerText",
+          "required": true,
+          "label": "common:core.module.output.label.Ai response content",
+          "description": "将在 stream 回复完毕后触发",
+          "valueType": "string",
+          "type": "static",
+          "valueDesc": ""
+        },
+        {
+          "id": "reasoningText",
+          "key": "reasoningText",
+          "required": false,
+          "label": "workflow:reasoning_text",
+          "valueType": "string",
+          "type": "static",
+          "invalid": true,
+          "valueDesc": "",
+          "description": ""
+        },
+        {
+          "id": "system_error_text",
+          "key": "system_error_text",
+          "type": "error",
+          "valueType": "string",
+          "label": "workflow:error_text",
+          "valueDesc": "",
+          "description": ""
+        }
+      ],
+      "catchError": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "START",
+      "target": "MENU",
+      "sourceHandle": "START-source-right",
+      "targetHandle": "MENU-target-left"
+    },
+    {
+      "source": "MENU",
+      "target": "FORM_JD",
+      "sourceHandle": "MENU-source-jd_drafting",
+      "targetHandle": "FORM_JD-target-left"
+    },
+    {
+      "source": "FORM_JD",
+      "target": "CHAT_JD",
+      "sourceHandle": "FORM_JD-source-right",
+      "targetHandle": "CHAT_JD-target-left"
+    },
+    {
+      "source": "MENU",
+      "target": "FORM_RESUME",
+      "sourceHandle": "MENU-source-resume_screening",
+      "targetHandle": "FORM_RESUME-target-left"
+    },
+    {
+      "source": "FORM_RESUME",
+      "target": "CHAT_RESUME",
+      "sourceHandle": "FORM_RESUME-source-right",
+      "targetHandle": "CHAT_RESUME-target-left"
+    },
+    {
+      "source": "MENU",
+      "target": "FORM_INTERVIEW",
+      "sourceHandle": "MENU-source-interview_questions",
+      "targetHandle": "FORM_INTERVIEW-target-left"
+    },
+    {
+      "source": "FORM_INTERVIEW",
+      "target": "CHAT_INTERVIEW",
+      "sourceHandle": "FORM_INTERVIEW-source-right",
+      "targetHandle": "CHAT_INTERVIEW-target-left"
+    },
+    {
+      "source": "MENU",
+      "target": "FORM_OUTREACH",
+      "sourceHandle": "MENU-source-candidate_outreach",
+      "targetHandle": "FORM_OUTREACH-target-left"
+    },
+    {
+      "source": "FORM_OUTREACH",
+      "target": "CHAT_OUTREACH",
+      "sourceHandle": "FORM_OUTREACH-source-right",
+      "targetHandle": "CHAT_OUTREACH-target-left"
+    }
+  ],
+  "chatConfig": {
+    "welcomeText": "Hi, I am your HR recruiting assistant. Choose a workflow to draft a JD, screen a resume, create interview questions, or write candidate outreach.",
+    "variables": [],
+    "questionGuide": {
+      "open": false
+    },
+    "whisperConfig": {
+      "open": false,
+      "autoSend": false,
+      "autoTTSResponse": false
+    },
+    "scheduledTriggerConfig": {
+      "cronString": "",
+      "timezone": "Asia/Shanghai",
+      "defaultPrompt": ""
+    },
+    "chatInputGuide": {
+      "open": true,
+      "textList": [],
+      "customUrl": ""
+    },
+    "fileSelectConfig": {
+      "canSelectFile": true,
+      "canSelectImg": false,
+      "maxFiles": 3,
+      "canSelectVideo": false,
+      "canSelectAudio": false,
+      "canSelectCustomFileExtension": false,
+      "customFileExtensionList": [],
+      "customPdfParse": true
+    },
+    "autoExecute": {
+      "open": true,
+      "defaultPrompt": ""
+    },
+    "entryPoints": [
+      {
+        "id": "jd_drafting",
+        "name": "JD drafting"
+      },
+      {
+        "id": "resume_screening",
+        "name": "Resume screening"
+      },
+      {
+        "id": "interview_questions",
+        "name": "Interview questions"
+      },
+      {
+        "id": "candidate_outreach",
+        "name": "Candidate outreach"
+      }
+    ]
+  }
+}
