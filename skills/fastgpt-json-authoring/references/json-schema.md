@@ -169,6 +169,7 @@ Handle rules:
 | --- | --- |
 | Ordinary node | `<sourceNodeId>-source-right` |
 | `ifElseNode` true branch | `<sourceNodeId>-source-IF` |
+| `ifElseNode` else-if branch | `<sourceNodeId>-source-ELSE IF N` |
 | `ifElseNode` false branch | `<sourceNodeId>-source-ELSE` |
 | `userSelect` option | `<sourceNodeId>-source-<option.key>` |
 | HTTP catch branch | `<sourceNodeId>-source_catch-right` |
@@ -180,6 +181,11 @@ Every target handle should be:
 ```
 
 When generating JSON, create edges after node IDs and user-select option keys are final.
+
+Same-version samples have shown else-if branches serialized with spaces in the
+handle, such as `JUDGE-source-ELSE IF 1`. Validators should treat this as a
+valid if/else handle when the node's `ifElseList` contains multiple condition
+groups.
 
 ## Entry Points
 

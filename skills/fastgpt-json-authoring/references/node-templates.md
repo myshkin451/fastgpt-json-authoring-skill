@@ -41,6 +41,8 @@ Expected source handles:
 
 ```text
 <nodeId>-source-IF
+<nodeId>-source-ELSE IF 1
+<nodeId>-source-ELSE IF 2
 <nodeId>-source-ELSE
 ```
 
@@ -49,6 +51,11 @@ Authoring guidance:
 - Keep conditions deterministic.
 - Do not ask the LLM to decide permission or access scope.
 - Use backend API outputs or stable variables for authorization checks.
+- Same-version exports may serialize "else if" branches as
+  `<nodeId>-source-ELSE IF N`. Preserve those handles when cloning an existing
+  multi-branch judgment node.
+- Observed include operators are `include` and `notInclude`. Do not assume a
+  human UI label such as "contains" is the JSON operator name.
 
 ## User Select
 
@@ -86,6 +93,41 @@ Authoring guidance:
 - Keep labels short and concrete.
 - Do not save passwords to global variables.
 - Add a variable-update node after the form if downstream nodes need a stable internal variable.
+- Text-like fields use the field `key` as the downstream output id.
+- A single-select field uses `type: "select"`, `valueType: "string"`, and a
+  `list` of `{ "label": "...", "value": "..." }` entries.
+- A multi-select field uses `type: "multipleSelect"` and usually
+  `valueType: "arrayString"`.
+- A file picker field uses `type: "fileSelect"` and can declare
+  `canLocalUpload`, `canSelectFile`, `canSelectImg`, `canSelectVideo`,
+  `canSelectAudio`, and `maxFiles`.
+- Reference-backed select options can use `listInputType: "reference"` with a
+  `listReference` array. Some exported built-ins such as `userId`, `appId`, and
+  `cTime` may not appear in `chatConfig.variables`.
+
+Observed single-select shape:
+
+```json
+{
+  "type": "select",
+  "key": "陪练场景",
+  "label": "陪练场景",
+  "valueType": "string",
+  "required": true,
+  "defaultValue": "",
+  "list": [
+    {"label": "budget_objection", "value": "budget_objection"},
+    {"label": "poc_risk", "value": "poc_risk"}
+  ],
+  "listInputType": "custom"
+}
+```
+
+The corresponding output uses the field name as the output id:
+
+```json
+{"id": "陪练场景", "key": "陪练场景", "label": "陪练场景", "valueType": "string", "type": "static"}
+```
 
 ## Variable Update
 
@@ -123,6 +165,69 @@ Minimum completeness checklist:
 - Error capture strategy.
 
 Secret rule: configure real tokens in the FastGPT UI or deployment environment, not in public JSON examples.
+
+Observed header variable interpolation:
+
+```json
+{
+  "key": "X-Agent-Token",
+  "type": "string",
+  "value": "{{$VARIABLE_NODE_ID.agentTokenKey$}}"
+}
+```
+
+Observed JSON body interpolation uses HTTP-local custom input names:
+
+```json
+"system_httpJsonBody": "{\n  \"scenario_key\": \"{{scenario_key}}\"\n}"
+```
+
+Observed HTTP dynamic outputs:
+
+```json
+{"id": "gZ6JqQ", "type": "dynamic", "key": "success", "label": "success", "valueType": "any"}
+{"id": "x6trJY", "type": "dynamic", "key": "code", "label": "code", "valueType": "any"}
+{"id": "nvE6AV", "type": "dynamic", "key": "message", "label": "message", "valueType": "any"}
+{"id": "h74qzh", "type": "dynamic", "key": "data.file_id", "label": "data.file_id", "valueType": "any"}
+```
+
+If `catchError` is true, connect `<nodeId>-source_catch-right` to an error answer
+or recovery branch. A sample can export catch enabled without an actual catch
+edge, but generated production apps should not rely on that.
+
+File form outputs can be referenced by HTTP custom inputs as `arrayString`.
+
+Observed form-data body shape:
+
+```json
+{
+  "key": "system_httpContentType",
+  "valueType": "string",
+  "value": "form-data"
+}
+```
+
+```json
+{
+  "key": "system_httpFormBody",
+  "valueType": "any",
+  "value": [
+    {
+      "key": "record",
+      "type": "string",
+      "value": "{{$HTTP_NODE_ID.测试文件$}}"
+    },
+    {
+      "key": "purpose",
+      "type": "string",
+      "value": "{{$HTTP_NODE_ID.purpose$}}"
+    }
+  ]
+}
+```
+
+In this shape, the interpolation owner is the HTTP node itself and the referenced
+name is one of that HTTP node's custom input keys, not an HTTP output id.
 
 Typical branch pattern:
 
@@ -181,6 +286,28 @@ Authoring guidance:
 - Use history as conversational texture, not as the only business memory.
 - Separate initial generation and follow-up generation only when the prompts or required inputs are materially different.
 - If follow-up should refine a previous answer, save the previous AI output into a variable such as `last_briefing_card`.
+
+Observed knowledge-base quote binding:
+
+```json
+{
+  "key": "quoteQA",
+  "renderTypeList": ["settingDatasetQuotePrompt"],
+  "valueType": "datasetQuote",
+  "value": ["DATASET_SEARCH_NODE_ID", "quoteQA"]
+}
+```
+
+Observed file input binding:
+
+```json
+{
+  "key": "fileUrlList",
+  "renderTypeList": ["reference", "input"],
+  "valueType": "arrayString",
+  "value": [["WORKFLOW_START_NODE_ID", "userFiles"]]
+}
+```
 
 ## Answer Node
 

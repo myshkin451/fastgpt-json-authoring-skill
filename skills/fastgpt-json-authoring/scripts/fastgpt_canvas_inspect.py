@@ -13,7 +13,7 @@ from typing import Any
 
 
 VARIABLE_NODE_ID = "VARIABLE_NODE_ID"
-BUILTIN_VARIABLE_KEYS = {"system_entryPoint"}
+BUILTIN_VARIABLE_KEYS = {"system_entryPoint", "userId", "appId", "cTime"}
 SECRET_HEADER_KEYS = {"authorization", "x-agent-token", "x-api-key", "api-key"}
 INTERPOLATION_RE = re.compile(r"\{\{\$([^.{}$]+)\.([^{}$]+)\$\}\}")
 UPSTREAM_TARGET_RE = re.compile(r"(G00|M00|menu|gate|entry|入口|菜单|确认门)", re.IGNORECASE)
@@ -106,8 +106,20 @@ def looks_like_reference_pair(value: Any) -> bool:
     )
 
 
+def looks_like_template_value(value: str) -> bool:
+    return "{{" in value and "}}" in value
+
+
 def is_reference_field(path: str) -> bool:
     return ".value" in path or ".variable" in path
+
+
+def node_input_keys(node: dict[str, Any]) -> set[str]:
+    return {
+        str(item["key"])
+        for item in as_list(node.get("inputs"))
+        if isinstance(item, dict) and item.get("key") is not None
+    }
 
 
 def source_handle_issue(
@@ -121,9 +133,11 @@ def source_handle_issue(
     expected_right = f"{source}-source-right"
 
     if node_type == "ifElseNode":
-        if handle not in {f"{source}-source-IF", f"{source}-source-ELSE"}:
-            return "ifElseNode sourceHandle should end with source-IF or source-ELSE"
-        return None
+        if handle in {f"{source}-source-IF", f"{source}-source-ELSE"}:
+            return None
+        if re.fullmatch(rf"{re.escape(source)}-source-ELSE IF \d+", handle):
+            return None
+        return "ifElseNode sourceHandle should be source-IF, source-ELSE IF N, or source-ELSE"
 
     if node_type == "userSelect":
         option_keys = set()
@@ -278,7 +292,9 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                         issues.append(f"{node.get('name')} {path}: unknown variable key {ref}")
                 elif owner not in node_by_id:
                     issues.append(f"{node.get('name')} {path}: unknown referenced node {owner}")
-                elif ref not in output_ids_by_node.get(owner, set()):
+                elif ref not in output_ids_by_node.get(owner, set()) and not (
+                    owner == node_id and ref in node_input_keys(node)
+                ):
                     issues.append(
                         f"{node.get('name')} {path}: unknown output {ref} on node {node_name(node_by_id, owner)}"
                     )
@@ -289,7 +305,9 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                             issues.append(f"{node.get('name')} {path}: unknown interpolated variable key {ref}")
                     elif owner not in node_by_id:
                         issues.append(f"{node.get('name')} {path}: unknown interpolated node {owner}")
-                    elif ref not in output_ids_by_node.get(owner, set()):
+                    elif ref not in output_ids_by_node.get(owner, set()) and not (
+                        owner == node_id and ref in node_input_keys(node)
+                    ):
                         issues.append(
                             f"{node.get('name')} {path}: unknown interpolated output {ref} on node {node_name(node_by_id, owner)}"
                         )
@@ -324,7 +342,12 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                     continue
                 header_name = str(header.get("key") or header.get("name") or "").strip().lower()
                 header_value = str(header.get("value") or "").strip()
-                if header_name in SECRET_HEADER_KEYS and header_value and "REDACT" not in header_value.upper():
+                if (
+                    header_name in SECRET_HEADER_KEYS
+                    and header_value
+                    and "REDACT" not in header_value.upper()
+                    and not looks_like_template_value(header_value)
+                ):
                     issues.append(f"{node.get('name')}: HTTP header {header_name} may contain an unredacted secret")
 
         if node_type == "datasetSearchNode" and not as_list(get_input(node, "datasets")):
