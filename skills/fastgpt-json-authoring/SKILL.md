@@ -7,6 +7,10 @@ description: Author, inspect, repair, and validate production-grade FastGPT expo
 
 Use this skill to treat a FastGPT app export as a reviewable graph program instead of a hand-drawn canvas. The goal is to produce JSON that is likely to import cleanly, then validate it with deterministic checks before the user opens FastGPT.
 
+中文定位：这是一个面向生产环境的 FastGPT / AIBuilder JSON authoring skill。
+它优先使用目标环境的同版本导出样本来校准节点形状，适合生成、检查、
+修复和重构可导入的复杂 FastGPT 工作流 JSON。
+
 This skill is platform-neutral: it can guide any skill-capable coding agent. The
 implementation currently ships a Python inspector and reference docs, but the
 authoring rules are not tied to one agent platform.
