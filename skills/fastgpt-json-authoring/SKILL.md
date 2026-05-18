@@ -1,11 +1,24 @@
 ---
 name: fastgpt-json-authoring
-description: Author, inspect, repair, and validate FastGPT exported application JSON for importable canvas workflows. Use when Codex needs to generate a new FastGPT app JSON, convert a workflow spec into FastGPT nodes and edges, analyze or refactor an exported FastGPT JSON file, diagnose broken canvas wiring, validate node handles and variable references, or document FastGPT JSON structure.
+description: Author, inspect, repair, and validate production-grade FastGPT exported application JSON for importable canvas workflows. Use when an AI coding agent needs to generate a new FastGPT app JSON, convert a workflow spec into nodes and edges, analyze or refactor an exported FastGPT JSON file, diagnose broken canvas wiring, validate node handles and variable references, or document FastGPT JSON structure.
 ---
 
 # FastGPT JSON Authoring
 
 Use this skill to treat a FastGPT app export as a reviewable graph program instead of a hand-drawn canvas. The goal is to produce JSON that is likely to import cleanly, then validate it with deterministic checks before the user opens FastGPT.
+
+This skill is platform-neutral: it can guide any skill-capable coding agent. The
+implementation currently ships a Python inspector and reference docs, but the
+authoring rules are not tied to one agent platform.
+
+Production standard:
+
+- Prefer same-version FastGPT seed exports over remembered schemas.
+- Treat JSON parsing as the lowest bar, not proof of readiness.
+- Distinguish static validation, import validation, and runtime preview
+  validation.
+- Never let LLM reasoning replace backend/API authority for permissions, ACLs,
+  identity, or durable business state.
 
 ## Quick Start
 
@@ -29,11 +42,20 @@ S01.ELSE -> P00
 
 5. Run the inspector again. Do not hand off a generated JSON with unresolved references, missing handles, incomplete HTTP nodes, or suspicious menu back-edges unless the risk is intentionally documented.
 
+6. For production apps, import into a FastGPT copy and preview success, denial,
+   API-error, and menu/re-entry paths before calling the app runtime-validated.
+
 ## What To Load
 
+- Read `references/industrial-authoring.md` when positioning an app as
+  production/industrial-grade, designing release gates, or deciding what can be
+  claimed after static validation.
 - Read `references/json-schema.md` when creating or modifying JSON structure, variables, references, interpolation, edges, or node IDs.
 - Read `references/node-templates.md` when constructing specific node types such as HTTP, user select, form input, AI chat, dataset search, text editor, or variable update nodes.
 - Read `references/authoring-workflow.md` when planning a full app, recovering from a broken canvas, designing import validation, or deciding how to handle platform quirks.
+- Read `references/template-first-vs-export-calibrated.md` when comparing this
+  skill with template-first generators or deciding whether official/default
+  templates can override real same-version exports.
 - Run `scripts/fastgpt_canvas_inspect.py` on every provided or generated export.
 
 ## Authoring Rules
@@ -44,8 +66,24 @@ S01.ELSE -> P00
 - Use output IDs, not output keys, in references and interpolations. HTTP output key `success` is not enough; later nodes usually reference that output's `id`.
 - Treat `chatConfig.entryPoints` as platform UI state, not as a reliable workflow trigger during paused user interactions. Prefer explicit user-select menus inside the workflow when deterministic continuation matters.
 - Avoid long chains that reconnect downstream nodes back to upstream login, menu, or form gates. If a platform import or runtime behaves oddly around loops, duplicate the required gate or route through a fresh top-level pass.
+- For HTTP nodes, distinguish FastGPT global-variable interpolation
+  `{{$VARIABLE_NODE_ID.<varKey>$}}` from HTTP-local request-body placeholders
+  such as `{{scenario_key}}`.
+- For environment-specific resources such as datasets, models, base URLs, and
+  tokens, generate a clear import action instead of pretending the binding is
+  portable.
 - Never store secrets in committed exports or docs. Redact API tokens and Authorization-like headers before publishing examples.
 - For knowledge-base nodes, expect dataset bindings to be environment-specific. If dataset IDs are unknown, leave a clear TODO and require manual selection after import.
+
+## Readiness Labels
+
+Use precise language:
+
+- `static-validated`: inspector passed or only documented expected warnings remain.
+- `import-validated`: FastGPT imported the JSON and the canvas opened.
+- `runtime-validated`: FastGPT preview exercised the required business paths.
+
+Do not call a generated app production-ready if only static validation has run.
 
 ## Validation Checklist
 

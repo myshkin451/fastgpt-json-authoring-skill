@@ -1,4 +1,4 @@
 interface:
   display_name: "FastGPT JSON Authoring"
-  short_description: "Author and validate importable FastGPT canvas JSON"
-  default_prompt: "Use $fastgpt-json-authoring to generate or validate a FastGPT app JSON for import."
+  short_description: "Generate, repair, and validate production-grade FastGPT workflow JSON"
+  default_prompt: "Use $fastgpt-json-authoring to create, inspect, or repair an importable FastGPT workflow JSON from a same-version seed export."

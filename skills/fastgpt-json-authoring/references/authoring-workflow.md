@@ -2,10 +2,13 @@
 
 Use this process when a user asks for a new FastGPT app JSON, a major refactor, or a repair of an exported canvas.
 
+For production/industrial-grade claims, also read `industrial-authoring.md`.
+
 ## Contents
 
 - Inputs to request or infer
 - Planning graph
+- Node inventory
 - ID strategy
 - Generation order
 - Repair workflow
@@ -63,6 +66,24 @@ L03.catch uses L03-source_catch-right
 
 This catches most canvas mistakes before JSON work begins.
 
+## Node Inventory
+
+For non-trivial apps, record a table before editing JSON:
+
+| Field | Purpose |
+| --- | --- |
+| `nodeId` | Stable JSON identity used by edges and references. |
+| `name` | Human-readable canvas label. |
+| `flowNodeType` | Runtime operator type. |
+| Position | Canvas layout and branch readability. |
+| Upstream data | Which node/variable outputs this node consumes. |
+| Outputs consumed downstream | Output ids/keys needed later. |
+| Success edge | Normal next node. |
+| Failure/catch edge | Error branch or denial branch. |
+| Import action | Any manual binding after import. |
+
+Keep the table short. It is a review aid, not a second schema.
+
 ## ID Strategy
 
 Use stable semantic IDs while authoring when FastGPT accepts them, for example `S00`, `A03`, or `M00`. If the platform rewrites IDs on import, keep a source map in comments outside the JSON or in a companion doc.
@@ -81,13 +102,14 @@ user_select_option_key_by_label
 
 ## Generation Order
 
-1. Define `chatConfig` and variables.
-2. Create nodes with names, `flowNodeType`, cloned metadata, and positions.
-3. Create node outputs and record output IDs.
-4. Fill node inputs and references.
-5. Create edges with valid handles.
-6. Run the inspector.
-7. Import to FastGPT and perform preview tests.
+1. Define readiness target: draft, static-validated, import-validated, or runtime-validated.
+2. Define `chatConfig` and variables.
+3. Create nodes with names, `flowNodeType`, cloned metadata, and positions.
+4. Create node outputs and record output IDs.
+5. Fill node inputs and references.
+6. Create edges with valid handles.
+7. Run the inspector.
+8. Import to FastGPT and perform preview tests.
 
 Do not create edges before user-select option keys are final.
 
@@ -121,6 +143,9 @@ After import, verify in FastGPT UI:
 - Preview reaches each success branch.
 - Preview reaches each error branch.
 - AI nodes receive the expected variables and retrieved references.
+
+Use the exact readiness labels from `industrial-authoring.md` in the handoff:
+`static-validated`, `import-validated`, and `runtime-validated`.
 
 Keep one tiny "smoke export" per FastGPT version if possible. It becomes the calibration file for future generated apps.
 
