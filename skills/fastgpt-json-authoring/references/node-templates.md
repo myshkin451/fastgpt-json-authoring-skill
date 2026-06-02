@@ -10,9 +10,19 @@ Use these patterns as authoring guidance. Prefer cloning exact `inputs` and `out
 - Form input
 - Variable update
 - HTTP request
+- Question classification
+- Content extraction
 - Dataset search
+- Question optimization
+- Dataset quote merge
+- Document parsing
 - Text editor
+- Code
+- Batch and parallel run
 - AI chat
+- Tool calling
+- Plugin module
+- Custom feedback
 - Answer node
 
 ## Workflow Start
@@ -238,6 +248,112 @@ HTTP.catch -> Friendly error answer
 
 If `catchError=true`, add a catch edge unless the runtime intentionally swallows errors.
 
+## Question Classification
+
+Purpose: route natural-language requests into deterministic branches.
+
+Observed `flowNodeType`:
+
+```text
+classifyQuestion
+```
+
+Key inputs:
+
+- `model`
+- `systemPrompt`
+- `history`
+- `userChatInput`
+- `agents`
+
+The `agents` input is a list of category labels and stable keys:
+
+```json
+[
+  {"value": "售前咨询", "key": "wqre"},
+  {"value": "售后故障", "key": "sdfa"},
+  {"value": "其他问题", "key": "agex"}
+]
+```
+
+Each category key controls an outgoing branch handle:
+
+```text
+<nodeId>-source-wqre
+<nodeId>-source-sdfa
+<nodeId>-source-agex
+```
+
+The standard output is:
+
+```json
+{"id": "cqResult", "key": "cqResult", "label": "分类结果", "valueType": "string", "type": "static"}
+```
+
+Authoring guidance:
+
+- Use classification for routing, not for permissions or identity decisions.
+- Keep category keys stable and ASCII when possible; downstream edges depend on
+  these keys.
+- If exact branch reliability matters, add a fallback category such as `other`.
+
+## Content Extraction
+
+Purpose: extract structured fields from text before HTTP calls, branching, or
+AI generation.
+
+Observed `flowNodeType`:
+
+```text
+contentExtract
+```
+
+Key inputs:
+
+- `model`
+- `description`
+- `history`
+- `content`
+- `extractKeys`
+
+Observed `extractKeys` shape:
+
+```json
+[
+  {
+    "valueType": "string",
+    "required": false,
+    "defaultValue": "",
+    "desc": "this is test",
+    "key": "test",
+    "enum": ""
+  }
+]
+```
+
+Fixed outputs:
+
+```json
+{"id": "success", "key": "success", "label": "字段完全提取", "valueType": "boolean", "type": "static"}
+{"id": "fields", "key": "fields", "label": "完整提取结果", "valueType": "string", "type": "static"}
+{"id": "system_error_text", "key": "system_error_text", "type": "error", "valueType": "string"}
+```
+
+Each `extractKeys[].key` also becomes an output. The visible key is the field
+key, but the `id` may be generated:
+
+```json
+{"id": "uBpKfPkp8tJbYoWG", "key": "test", "label": "提取结果-test", "valueType": "string", "type": "static"}
+```
+
+Authoring guidance:
+
+- Maintain a field-key to output-id map for extracted fields.
+- Use `success` for deterministic follow-up checks when all required fields
+  must be present.
+- Treat `fields` as a JSON string unless a same-version export proves object
+  output in the target environment.
+
 ## Dataset Search
 
 Purpose: retrieve knowledge-base references.
@@ -263,6 +379,115 @@ Text editor builds retrieval query -> Dataset search -> AI chat uses dataset quo
 
 For a first implementation, one broad dataset-search node can be enough. Split into product, case, talk-track, and SOP searches later when ranking quality or citation control requires it.
 
+## Question Optimization
+
+Purpose: rewrite follow-up questions into better retrieval queries for RAG.
+
+Observed `flowNodeType`:
+
+```text
+cfr
+```
+
+Key inputs:
+
+- `model`
+- `systemPrompt`
+- `history`
+- `userChatInput`
+
+Observed output:
+
+```json
+{"id": "system_text", "key": "system_text", "valueType": "string", "type": "static"}
+```
+
+Good pattern:
+
+```text
+Question optimization -> Dataset search -> AI chat
+```
+
+The optimized output is meant for retrieval. Avoid feeding it to the final AI
+answer as the only user question unless that is the intended UX.
+
+## Dataset Quote Merge
+
+Purpose: merge multiple dataset-search quote lists into a single `datasetQuote`
+input for one AI chat node.
+
+Observed `flowNodeType`:
+
+```text
+datasetConcatNode
+```
+
+Key inputs:
+
+- `limit`
+- `system_datasetQuoteList`
+- one dynamic input per quote source, with `valueType: "datasetQuote"`
+
+Observed dynamic quote input:
+
+```json
+{
+  "key": "uf0ULngEOoDObvhK",
+  "renderTypeList": ["reference"],
+  "label": "workflow:quote_num-1",
+  "valueType": "datasetQuote",
+  "value": ["DATASET_SEARCH_NODE_ID", "quoteQA"]
+}
+```
+
+Observed output:
+
+```json
+{"id": "quoteQA", "key": "quoteQA", "valueType": "datasetQuote", "type": "static"}
+```
+
+Good pattern:
+
+```text
+Dataset search A -> Dataset search B -> Dataset quote merge -> AI chat
+```
+
+Use this when multiple retrieval paths should feed a single answer node.
+
+## Document Parsing
+
+Purpose: parse user-uploaded documents into plain text for downstream nodes.
+
+Observed `flowNodeType`:
+
+```text
+readFiles
+```
+
+Key input:
+
+```json
+{
+  "key": "fileUrlList",
+  "renderTypeList": ["reference"],
+  "valueType": "arrayString",
+  "value": [["WORKFLOW_START_NODE_ID", "userFiles"]]
+}
+```
+
+Observed outputs:
+
+```json
+{"id": "system_text", "key": "system_text", "label": "文档解析结果", "valueType": "string", "type": "static"}
+{"id": "system_rawResponse", "key": "system_rawResponse", "label": "原始响应", "valueType": "arrayObject", "type": "static"}
+{"id": "system_error_text", "key": "system_error_text", "type": "error", "valueType": "string"}
+```
+
+Export caveat: some same-version exports reference `workflowStart.userFiles`
+even when the start node does not explicitly list `userFiles` in `outputs`.
+Treat `workflowStart.userFiles` as a built-in output when file upload is enabled
+or a downstream file-aware node has been configured.
+
 ## Text Editor
 
 Purpose: construct stable text from variables and node outputs.
@@ -275,6 +500,120 @@ Use for:
 - Normalizing user input before a downstream node.
 
 Prefer text editor nodes over embedding large interpolation strings in many different nodes.
+
+## Code
+
+Purpose: transform data, build arrays for batch/parallel nodes, normalize JSON,
+or perform deterministic calculations.
+
+Observed `flowNodeType`:
+
+```text
+code
+```
+
+Key inputs:
+
+- `system_addInputParam`
+- custom input keys such as `data1` and `data2`
+- `codeType`, commonly `js` or `py`
+- `code`
+
+Observed fixed outputs:
+
+```json
+{"id": "system_addOutputParam", "key": "system_addOutputParam", "type": "dynamic", "valueType": "dynamic"}
+{"id": "system_rawResponse", "key": "system_rawResponse", "valueType": "object", "type": "static"}
+{"id": "error", "key": "error", "type": "error", "valueType": "string"}
+```
+
+Each custom output maps a return-object key to a generated output id:
+
+```json
+{"id": "qLUQfhG0ILRX", "type": "dynamic", "key": "textArray", "valueType": "arrayAny", "label": "textArray"}
+```
+
+Authoring guidance:
+
+- Return an object/dict from code. Add one custom output per key that
+  downstream nodes need.
+- Use code to build arrays before `loop` or `parallelRun`.
+- Preserve generated output IDs from seed exports or regenerate unique IDs and
+  update every downstream reference.
+
+## Batch And Parallel Run
+
+Purpose: apply a sub-workflow to every item in an array. Batch runs sequentially;
+parallel run executes multiple items concurrently and aggregates success/failure.
+
+Observed batch `flowNodeType`:
+
+```text
+loop
+```
+
+Observed parallel `flowNodeType`:
+
+```text
+parallelRun
+```
+
+Both use child nodes:
+
+```text
+loopStart -> inner workflow -> loopEnd
+```
+
+Key parent inputs:
+
+- `loopInputArray`
+- `childrenNodeIdList`
+- `nodeWidth`
+- `nodeHeight`
+- `loopNodeInputHeight`
+
+Parallel-only inputs:
+
+- `parallelRunMaxConcurrency`
+- `parallelRunMaxRetryTimes`
+
+Observed `loopStart` outputs:
+
+```json
+{"id": "loopStartIndex", "key": "loopStartIndex", "valueType": "number", "type": "static"}
+{"id": "loopStartInput", "key": "loopStartInput", "valueType": "string", "type": "static"}
+```
+
+Observed `loopEnd` input:
+
+```json
+{"key": "loopEndInput", "renderTypeList": ["reference"], "valueType": "any", "value": ["INNER_NODE_ID", "answerText"]}
+```
+
+Observed batch output:
+
+```json
+{"id": "loopArray", "key": "loopArray", "label": "数组执行结果", "valueType": "arrayString", "type": "static"}
+```
+
+Observed parallel outputs:
+
+```json
+{"id": "parallelSuccessResults", "key": "parallelSuccessResults", "valueType": "arrayString", "type": "static"}
+{"id": "parallelFullResults", "key": "parallelFullResults", "valueType": "arrayObject", "type": "static"}
+{"id": "parallelStatus", "key": "parallelStatus", "valueType": "string", "type": "static"}
+```
+
+Authoring guidance:
+
+- Feed `loopInputArray` from an array output, often a code-node custom output.
+- Keep interactive nodes such as `formInput` and `userSelect` outside loop and
+  parallel child workflows.
+- Preserve `childrenNodeIdList`; it is how the parent node knows which canvas
+  nodes belong to its inner workflow.
+- Use the parent node's aggregate output (`loopArray` or
+  `parallelSuccessResults`) downstream, not individual child-node outputs from
+  outside the child workflow.
 
 ## AI Chat
 
@@ -308,6 +647,114 @@ Observed file input binding:
   "value": [["WORKFLOW_START_NODE_ID", "userFiles"]]
 }
 ```
+
+## Tool Calling
+
+Purpose: let an LLM dynamically choose from connected tools, rather than running
+a fixed path.
+
+Observed `flowNodeType` values:
+
+```text
+tools
+tool
+toolSet
+stopTool
+toolParams
+```
+
+Observed `tools` outputs:
+
+```json
+{"id": "answerText", "key": "answerText", "label": "AI 回复内容", "valueType": "string", "type": "static"}
+{"id": "system_error_text", "key": "system_error_text", "type": "error", "valueType": "string"}
+```
+
+Tool-selection edges are special. They do not use ordinary source/target
+handles:
+
+```json
+{
+  "source": "TOOLS_NODE_ID",
+  "target": "TOOL_NODE_ID",
+  "sourceHandle": "selectedTools",
+  "targetHandle": "selectedTools"
+}
+```
+
+`tools` can also continue as an ordinary node:
+
+```text
+TOOLS_NODE_ID-source-right -> stopTool or downstream node
+```
+
+Observed `tool` output from a built-in search tool:
+
+```json
+{"id": "result", "key": "result", "valueType": "arrayObject", "type": "static"}
+{"id": "error", "key": "error", "valueType": "string", "type": "error"}
+```
+
+Observed `toolParams` rule: inputs become outputs with the same keys so the
+tool-calling LLM can fill them.
+
+Authoring guidance:
+
+- Start with few tools and precise descriptions; tool-calling behavior is model
+  sensitive.
+- Use `stopTool` when a tool path should end the current tool call without
+  asking the LLM to summarize all tool results.
+- Do not serialize real tool API keys in exports. `system_input_config` can
+  declare secret inputs without storing secret values.
+
+## Plugin Module
+
+Purpose: call a plugin/app module from the current workflow.
+
+Observed `flowNodeType`:
+
+```text
+pluginModule
+```
+
+Observed minimal input/output:
+
+```json
+{"key": "system_forbid_stream", "renderTypeList": ["switch"], "valueType": "boolean", "value": false}
+{"id": "system_error_text", "key": "system_error_text", "type": "error", "valueType": "string"}
+```
+
+Open uncertainty: this demo export only captured a minimal plugin module, not a
+fully parameterized plugin call with plugin input/output bindings. For production
+authoring, still request a same-version seed export that includes the actual
+plugin/app binding and any dynamic outputs.
+
+## Custom Feedback
+
+Purpose: record a conversation feedback marker for analytics or debugging.
+
+Observed `flowNodeType`:
+
+```text
+customFeedback
+```
+
+Key input:
+
+```json
+{"key": "system_textareaInput", "renderTypeList": ["textarea", "reference"], "valueType": "string"}
+```
+
+Observed outputs:
+
+```json
+[]
+```
+
+Authoring guidance:
+
+- Treat custom feedback as telemetry, not a business-state update.
+- It can sit mid-flow and continue through ordinary `source-right` handles.
 
 ## Answer Node
 

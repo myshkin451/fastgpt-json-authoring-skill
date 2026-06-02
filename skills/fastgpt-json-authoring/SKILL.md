@@ -56,6 +56,8 @@ S01.ELSE -> P00
   claimed after static validation.
 - Read `references/json-schema.md` when creating or modifying JSON structure, variables, references, interpolation, edges, or node IDs.
 - Read `references/node-templates.md` when constructing specific node types such as HTTP, user select, form input, AI chat, dataset search, text editor, or variable update nodes.
+- Read `references/node-coverage.md` when deciding whether a node type is
+  documented, inspector-aware, or still seed-required.
 - Read `references/authoring-workflow.md` when planning a full app, recovering from a broken canvas, designing import validation, or deciding how to handle platform quirks.
 - Read `references/template-first-vs-export-calibrated.md` when comparing this
   skill with template-first generators or deciding whether official/default
@@ -101,8 +103,13 @@ Before final handoff, verify:
 - `ifElseNode` uses `source-IF` or `source-ELSE`.
 - `userSelect` edges use option keys from `userSelectOptions`.
 - HTTP catch edges use `<nodeId>-source_catch-right`.
+- `classifyQuestion` edges use category keys from `agents`.
+- `tools` selected-tool edges use `selectedTools` as both source and target handle.
 - Reference pairs like `["VARIABLE_NODE_ID", "<varKey>"]` and `["<nodeId>", "<outputId>"]` resolve.
 - Interpolations like `{{$VARIABLE_NODE_ID.<varKey>$}}` and `{{$<nodeId>.<outputId>$}}` resolve.
 - HTTP nodes have method, URL, headers, JSON body when required, output fields, and planned error handling.
 - Dataset search nodes have selected datasets or an explicit post-import action.
+- Loop and parallel nodes have array inputs and a child workflow containing
+  `loopStart` and `loopEnd`.
+- Content extraction nodes have outputs for every `extractKeys` field.
 - Generated examples contain no real credentials, customer data, private URLs, or project-only business content.

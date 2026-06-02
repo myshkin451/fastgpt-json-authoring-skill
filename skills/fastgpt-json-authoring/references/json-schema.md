@@ -172,12 +172,21 @@ Handle rules:
 | `ifElseNode` else-if branch | `<sourceNodeId>-source-ELSE IF N` |
 | `ifElseNode` false branch | `<sourceNodeId>-source-ELSE` |
 | `userSelect` option | `<sourceNodeId>-source-<option.key>` |
+| `classifyQuestion` category | `<sourceNodeId>-source-<agents.key>` |
 | HTTP catch branch | `<sourceNodeId>-source_catch-right` |
+| `tools` selected tool | `selectedTools` |
 
 Every target handle should be:
 
 ```text
 <targetNodeId>-target-left
+```
+
+Exception: `tools` selected-tool edges use:
+
+```text
+sourceHandle = selectedTools
+targetHandle = selectedTools
 ```
 
 When generating JSON, create edges after node IDs and user-select option keys are final.
@@ -218,6 +227,20 @@ Open the dataset search node and manually select the knowledge base.
 ```
 
 The inspector flags empty dataset selections because imports can look correct while retrieval silently returns nothing.
+
+## Built-In Outputs
+
+Some exports can reference built-in outputs even when the source node omits them
+from its `outputs` array. The observed important case is:
+
+```text
+workflowStart.userFiles
+```
+
+File-aware nodes such as AI chat, tool calling, and document parsing may keep a
+default reference to `workflowStart.userFiles`. Treat this as a built-in
+`arrayString` output when file upload is enabled or a downstream file-aware node
+is configured.
 
 ## Secret Hygiene
 

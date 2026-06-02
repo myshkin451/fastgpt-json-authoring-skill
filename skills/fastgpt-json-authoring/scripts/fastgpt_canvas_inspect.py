@@ -14,6 +14,12 @@ from typing import Any
 
 VARIABLE_NODE_ID = "VARIABLE_NODE_ID"
 BUILTIN_VARIABLE_KEYS = {"system_entryPoint", "userId", "appId", "cTime"}
+BUILTIN_NODE_OUTPUT_VALUE_TYPES = {
+    "workflowStart": {
+        "userChatInput": "string",
+        "userFiles": "arrayString",
+    }
+}
 SECRET_HEADER_KEYS = {"authorization", "x-agent-token", "x-api-key", "api-key"}
 INTERPOLATION_RE = re.compile(r"\{\{\$([^.{}$]+)\.([^{}$]+)\$\}\}")
 UPSTREAM_TARGET_RE = re.compile(r"(G00|M00|menu|gate|entry|入口|菜单|确认门)", re.IGNORECASE)
@@ -67,13 +73,17 @@ def node_name(node_by_id: dict[str, dict[str, Any]], node_id: Any) -> str:
     return str(node.get("name") or node.get("nodeId") or node_id)
 
 
-def output_maps(nodes: list[dict[str, Any]]) -> tuple[dict[str, dict[str, str]], dict[str, set[str]]]:
+def output_maps(
+    nodes: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, str]], dict[str, set[str]], dict[str, dict[str, str]]]:
     by_key: dict[str, dict[str, str]] = {}
     ids: dict[str, set[str]] = {}
+    value_types: dict[str, dict[str, str]] = {}
     for node in nodes:
         node_id = str(node.get("nodeId", ""))
         by_key[node_id] = {}
         ids[node_id] = set()
+        value_types[node_id] = {}
         for output in as_list(node.get("outputs")):
             if not isinstance(output, dict):
                 continue
@@ -81,9 +91,11 @@ def output_maps(nodes: list[dict[str, Any]]) -> tuple[dict[str, dict[str, str]],
             output_key = output.get("key")
             if output_id is not None:
                 ids[node_id].add(str(output_id))
+                if output.get("valueType") is not None:
+                    value_types[node_id][str(output_id)] = str(output["valueType"])
             if output_key is not None and output_id is not None:
                 by_key[node_id][str(output_key)] = str(output_id)
-    return by_key, ids
+    return by_key, ids, value_types
 
 
 def walk_json(value: Any, path: str = "$"):
@@ -122,6 +134,31 @@ def node_input_keys(node: dict[str, Any]) -> set[str]:
     }
 
 
+def builtin_node_output_value_type(node: dict[str, Any], output_key: str) -> str | None:
+    node_type = str(node.get("flowNodeType", ""))
+    return BUILTIN_NODE_OUTPUT_VALUE_TYPES.get(node_type, {}).get(output_key)
+
+
+def has_node_output(
+    node: dict[str, Any],
+    node_id: str,
+    output_key: str,
+    valid_output_ids: dict[str, set[str]],
+) -> bool:
+    return (
+        output_key in valid_output_ids.get(node_id, set())
+        or builtin_node_output_value_type(node, output_key) is not None
+    )
+
+
+def first_reference_pair(value: Any) -> list[str] | None:
+    if looks_like_reference_pair(value):
+        return value
+    if isinstance(value, list) and len(value) == 1 and looks_like_reference_pair(value[0]):
+        return value[0]
+    return None
+
+
 def source_handle_issue(
     edge: dict[str, Any],
     source_node: dict[str, Any],
@@ -139,6 +176,18 @@ def source_handle_issue(
             return None
         return "ifElseNode sourceHandle should be source-IF, source-ELSE IF N, or source-ELSE"
 
+    if node_type == "classifyQuestion":
+        category_keys = set()
+        for category in as_list(get_input(source_node, "agents")):
+            if isinstance(category, dict) and category.get("key") is not None:
+                category_keys.add(str(category["key"]))
+        expected = {f"{source}-source-{key}" for key in category_keys}
+        if expected and handle not in expected:
+            return "classifyQuestion sourceHandle does not match any agents key"
+        if not expected and handle != expected_right:
+            return "classifyQuestion has no categories and sourceHandle is not the ordinary right handle"
+        return None
+
     if node_type == "userSelect":
         option_keys = set()
         for option in as_list(get_input(source_node, "userSelectOptions")):
@@ -149,6 +198,13 @@ def source_handle_issue(
             return "userSelect sourceHandle does not match any userSelectOptions key"
         if not expected and handle != expected_right:
             return "userSelect has no options and sourceHandle is not the ordinary right handle"
+        return None
+
+    if node_type == "tools":
+        if handle == "selectedTools":
+            return None
+        if handle != expected_right:
+            return "tools sourceHandle should be source-right or selectedTools"
         return None
 
     if node_type.startswith("httpRequest"):
@@ -164,6 +220,26 @@ def source_handle_issue(
         if output_suffix in valid_output_ids.get(source, set()):
             return None
         return "ordinary node sourceHandle should use source-right"
+    return None
+
+
+def target_handle_issue(
+    edge: dict[str, Any],
+    source_node: dict[str, Any] | None,
+    target_node: dict[str, Any] | None,
+) -> str | None:
+    target = str(edge.get("target", ""))
+    target_handle = str(edge.get("targetHandle", ""))
+    source_type = str(source_node.get("flowNodeType", "")) if source_node else ""
+    source_handle = str(edge.get("sourceHandle", ""))
+
+    if source_type == "tools" and source_handle == "selectedTools":
+        if target_handle != "selectedTools":
+            return "tools selectedTools edge targetHandle should be selectedTools"
+        return None
+
+    if target_node and target_handle != f"{target}-target-left":
+        return f"targetHandle should be {target}-target-left"
     return None
 
 
@@ -226,7 +302,12 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
         if var.get("label") is not None and var.get("key") is not None
     }
     variable_keys = {str(var.get("key")) for var in variables if var.get("key") is not None}
-    output_id_by_node_key, output_ids_by_node = output_maps(nodes)
+    variable_value_types = {
+        str(var.get("key")): str(var.get("valueType"))
+        for var in variables
+        if var.get("key") is not None and var.get("valueType") is not None
+    }
+    output_id_by_node_key, output_ids_by_node, output_value_types_by_node = output_maps(nodes)
 
     node_ids = [
         str(node.get("nodeId"))
@@ -265,8 +346,9 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
             issues.append(f"edge #{index}: missing source node {source}")
         if not target_node:
             issues.append(f"edge #{index}: missing target node {target}")
-        if target and edge.get("targetHandle") != f"{target}-target-left":
-            issues.append(f"edge #{index}: targetHandle should be {target}-target-left")
+        target_issue = target_handle_issue(edge, source_node, target_node)
+        if target_issue:
+            issues.append(f"edge #{index}: {target_issue}")
         if source_node:
             handle_issue = source_handle_issue(edge, source_node, output_ids_by_node)
             if handle_issue:
@@ -294,7 +376,7 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                     issues.append(f"{node.get('name')} {path}: unknown referenced node {owner}")
                 elif ref not in output_ids_by_node.get(owner, set()) and not (
                     owner == node_id and ref in node_input_keys(node)
-                ):
+                ) and not has_node_output(node_by_id[owner], owner, ref, output_ids_by_node):
                     issues.append(
                         f"{node.get('name')} {path}: unknown output {ref} on node {node_name(node_by_id, owner)}"
                     )
@@ -307,7 +389,7 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                         issues.append(f"{node.get('name')} {path}: unknown interpolated node {owner}")
                     elif ref not in output_ids_by_node.get(owner, set()) and not (
                         owner == node_id and ref in node_input_keys(node)
-                    ):
+                    ) and not has_node_output(node_by_id[owner], owner, ref, output_ids_by_node):
                         issues.append(
                             f"{node.get('name')} {path}: unknown interpolated output {ref} on node {node_name(node_by_id, owner)}"
                         )
@@ -319,22 +401,18 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
             headers = as_list(get_input(node, "system_httpHeader"))
             content_type = get_input(node, "system_httpContentType")
             json_body = get_input(node, "system_httpJsonBody")
-            output_keys = {
-                str(output.get("key"))
-                for output in as_list(node.get("outputs"))
-                if isinstance(output, dict) and output.get("key") is not None
-            }
             if not method:
                 issues.append(f"{node.get('name')}: HTTP node missing method")
             if not str(url or "").strip():
                 issues.append(f"{node.get('name')}: HTTP node missing URL")
             if not headers:
                 issues.append(f"{node.get('name')}: HTTP node missing headers")
-            if str(method or "").upper() in {"POST", "PUT", "PATCH"} and content_type == "json" and not str(json_body or "").strip():
+            if (
+                str(method or "").upper() in {"POST", "PUT", "PATCH"}
+                and content_type == "json"
+                and not str(json_body or "").strip()
+            ):
                 issues.append(f"{node.get('name')}: HTTP JSON request missing json body")
-            for required_output in ("success", "code"):
-                if required_output not in output_keys:
-                    issues.append(f"{node.get('name')}: HTTP output missing {required_output}")
             if node.get("catchError") is True and node_id not in catch_sources:
                 issues.append(f"{node.get('name')}: catchError is true but no catch edge was found")
             for header in headers:
@@ -352,6 +430,111 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
 
         if node_type == "datasetSearchNode" and not as_list(get_input(node, "datasets")):
             issues.append(f"{node.get('name')}: datasetSearchNode datasets value is empty")
+
+        if node_type == "classifyQuestion" and not as_list(get_input(node, "agents")):
+            issues.append(f"{node.get('name')}: classifyQuestion agents value is empty")
+
+        if node_type == "contentExtract":
+            extract_keys = [
+                item
+                for item in as_list(get_input(node, "extractKeys"))
+                if isinstance(item, dict) and item.get("key") is not None
+            ]
+            output_keys = {
+                str(output.get("key"))
+                for output in as_list(node.get("outputs"))
+                if isinstance(output, dict) and output.get("key") is not None
+            }
+            if not extract_keys:
+                issues.append(f"{node.get('name')}: contentExtract extractKeys value is empty")
+            for required_output in ("success", "fields"):
+                if required_output not in output_keys:
+                    issues.append(f"{node.get('name')}: contentExtract output missing {required_output}")
+            for item in extract_keys:
+                field_key = str(item["key"])
+                if field_key not in output_keys:
+                    issues.append(f"{node.get('name')}: contentExtract output missing field {field_key}")
+
+        if node_type == "cfr":
+            if not get_input(node, "userChatInput"):
+                issues.append(f"{node.get('name')}: cfr node missing userChatInput")
+            if "system_text" not in output_ids_by_node.get(node_id, set()):
+                issues.append(f"{node.get('name')}: cfr output missing system_text")
+
+        if node_type == "datasetConcatNode":
+            quote_input_count = 0
+            for item in as_list(node.get("inputs")):
+                if isinstance(item, dict) and item.get("valueType") == "datasetQuote":
+                    quote_input_count += 1
+            if quote_input_count == 0:
+                issues.append(f"{node.get('name')}: datasetConcatNode has no datasetQuote inputs")
+            if "quoteQA" not in output_ids_by_node.get(node_id, set()):
+                issues.append(f"{node.get('name')}: datasetConcatNode output missing quoteQA")
+
+        if node_type == "readFiles":
+            if not get_input(node, "fileUrlList"):
+                issues.append(f"{node.get('name')}: readFiles node missing fileUrlList")
+            for required_output in ("system_text", "system_rawResponse"):
+                if required_output not in output_ids_by_node.get(node_id, set()):
+                    issues.append(f"{node.get('name')}: readFiles output missing {required_output}")
+
+        if node_type == "code":
+            if not str(get_input(node, "code") or "").strip():
+                issues.append(f"{node.get('name')}: code node missing code")
+            dynamic_outputs = [
+                output
+                for output in as_list(node.get("outputs"))
+                if isinstance(output, dict) and output.get("type") == "dynamic" and output.get("key") != "system_addOutputParam"
+            ]
+            if not dynamic_outputs:
+                issues.append(f"{node.get('name')}: code node has no custom dynamic outputs")
+
+        if node_type in {"loop", "parallelRun"}:
+            loop_input = get_input(node, "loopInputArray")
+            if not loop_input:
+                issues.append(f"{node.get('name')}: {node_type} missing loopInputArray")
+            else:
+                ref_pair = first_reference_pair(loop_input)
+                ref_value_type = None
+                if ref_pair:
+                    owner, ref = ref_pair
+                    if owner == VARIABLE_NODE_ID:
+                        ref_value_type = variable_value_types.get(ref) or (
+                            "string" if ref in BUILTIN_VARIABLE_KEYS else None
+                        )
+                    elif owner in node_by_id:
+                        ref_value_type = output_value_types_by_node.get(owner, {}).get(
+                            ref
+                        ) or builtin_node_output_value_type(node_by_id[owner], ref)
+                if ref_value_type and not (
+                    ref_value_type.startswith("array")
+                    or ref_value_type in {"any", "arrayAny", "dynamic"}
+                ):
+                    issues.append(f"{node.get('name')}: {node_type} loopInputArray references non-array valueType {ref_value_type}")
+            children = [str(item) for item in as_list(get_input(node, "childrenNodeIdList"))]
+            if not children:
+                issues.append(f"{node.get('name')}: {node_type} childrenNodeIdList is empty")
+            else:
+                child_types = {str(node_by_id.get(child_id, {}).get("flowNodeType", "")) for child_id in children}
+                if "loopStart" not in child_types:
+                    issues.append(f"{node.get('name')}: {node_type} childrenNodeIdList missing loopStart")
+                if "loopEnd" not in child_types:
+                    issues.append(f"{node.get('name')}: {node_type} childrenNodeIdList missing loopEnd")
+            if node_type == "parallelRun":
+                for key in ("parallelRunMaxConcurrency", "parallelRunMaxRetryTimes"):
+                    if get_input(node, key) is None:
+                        issues.append(f"{node.get('name')}: parallelRun missing {key}")
+
+        if node_type == "loopStart":
+            for required_output in ("loopStartIndex", "loopStartInput"):
+                if required_output not in output_ids_by_node.get(node_id, set()):
+                    issues.append(f"{node.get('name')}: loopStart output missing {required_output}")
+
+        if node_type == "loopEnd" and get_input(node, "loopEndInput") is None:
+            issues.append(f"{node.get('name')}: loopEnd missing loopEndInput")
+
+        if node_type == "customFeedback" and not str(get_input(node, "system_textareaInput") or "").strip():
+            issues.append(f"{node.get('name')}: customFeedback missing feedback text")
 
     return {
         "top_level_keys": list(data.keys()),

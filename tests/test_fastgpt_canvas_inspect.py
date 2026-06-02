@@ -96,6 +96,102 @@ class FastGPTCanvasInspectTests(unittest.TestCase):
         self.assertIn("top-level JSON missing nodes", issues)
         self.assertIn("top-level JSON missing edges", issues)
 
+    def test_classify_question_category_handles_are_valid(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "C00",
+                    "name": "classify",
+                    "flowNodeType": "classifyQuestion",
+                    "inputs": [{"key": "agents", "value": [{"key": "sales", "value": "Sales"}]}],
+                    "outputs": [{"id": "cqResult", "key": "cqResult", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "C00", "sourceHandle": "S00-source-right", "targetHandle": "C00-target-left"},
+                {"source": "C00", "target": "A00", "sourceHandle": "C00-source-sales", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertFalse(any("classifyQuestion sourceHandle" in issue for issue in issues))
+
+    def test_tools_selected_edges_are_valid(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {"nodeId": "T00", "name": "tools", "flowNodeType": "tools", "inputs": [], "outputs": [{"id": "answerText", "key": "answerText", "valueType": "string"}]},
+                {"nodeId": "K00", "name": "tool", "flowNodeType": "tool", "inputs": [], "outputs": [{"id": "result", "key": "result", "valueType": "arrayObject"}]},
+                {"nodeId": "E00", "name": "stop", "flowNodeType": "stopTool", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "T00", "sourceHandle": "S00-source-right", "targetHandle": "T00-target-left"},
+                {"source": "T00", "target": "K00", "sourceHandle": "selectedTools", "targetHandle": "selectedTools"},
+                {"source": "T00", "target": "E00", "sourceHandle": "T00-source-right", "targetHandle": "E00-target-left"},
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertFalse(any("selectedTools" in issue for issue in issues))
+
+    def test_workflow_start_user_files_is_allowed_as_builtin_output(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "R00",
+                    "name": "read files",
+                    "flowNodeType": "readFiles",
+                    "inputs": [{"key": "fileUrlList", "value": [["S00", "userFiles"]]}],
+                    "outputs": [
+                        {"id": "system_text", "key": "system_text", "valueType": "string"},
+                        {"id": "system_rawResponse", "key": "system_rawResponse", "valueType": "arrayObject"},
+                    ],
+                },
+            ],
+            "edges": [
+                {"source": "S00", "target": "R00", "sourceHandle": "S00-source-right", "targetHandle": "R00-target-left"}
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertFalse(any("unknown output userFiles" in issue for issue in issues))
+
+    def test_loop_input_warns_when_reference_is_not_array(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "L00",
+                    "name": "loop",
+                    "flowNodeType": "loop",
+                    "inputs": [
+                        {"key": "loopInputArray", "value": [["S00", "userChatInput"]]},
+                        {"key": "childrenNodeIdList", "value": ["LS0", "LE0"]},
+                    ],
+                    "outputs": [{"id": "loopArray", "key": "loopArray", "valueType": "arrayString"}],
+                },
+                {"nodeId": "LS0", "name": "start item", "flowNodeType": "loopStart", "inputs": [], "outputs": [{"id": "loopStartIndex", "key": "loopStartIndex", "valueType": "number"}, {"id": "loopStartInput", "key": "loopStartInput", "valueType": "string"}]},
+                {"nodeId": "LE0", "name": "end item", "flowNodeType": "loopEnd", "inputs": [{"key": "loopEndInput", "value": ["LS0", "loopStartInput"]}], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "L00", "sourceHandle": "S00-source-right", "targetHandle": "L00-target-left"}
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertTrue(any("loopInputArray references non-array valueType string" in issue for issue in issues))
+
     def test_duplicate_ids_are_reported(self) -> None:
         data = self.inspector.load_export(FIXTURES / "minimal_valid_app.json")
         data["nodes"].append(dict(data["nodes"][0]))
