@@ -535,8 +535,17 @@ Each custom output maps a return-object key to a generated output id:
 
 Authoring guidance:
 
+- Code node JSON shape and executable syntax are not enough to validate each
+  other. Same-version exports can show inputs and outputs, while the code body
+  still needs a target-environment preview run that proves it returns an object.
 - Return an object/dict from code. Add one custom output per key that
   downstream nodes need.
+- Do not infer whether JavaScript should be a bare `return {}`, `async
+  function main() {}`, `module.exports = ...`, or another platform wrapper from
+  memory. Clone a working same-version Code node sample for the exact runtime.
+- If the Code node is only needed for values such as timestamps, trace IDs, or
+  small deterministic transforms, prefer a backend HTTP helper endpoint when a
+  working Code seed is unavailable.
 - Use code to build arrays before `loop` or `parallelRun`.
 - Preserve generated output IDs from seed exports or regenerate unique IDs and
   update every downstream reference.
@@ -622,7 +631,19 @@ Purpose: LLM generation.
 Authoring guidance:
 
 - Feed AI nodes explicit business state: customer briefing, retrieved references, current question, branch name, and last generated card if needed.
-- Use history as conversational texture, not as the only business memory.
+- Internal AI nodes such as planners, routers, JSON extractors, scorers, and
+  summarizers that feed downstream deterministic nodes must set
+  `isResponseAnswerText=false`. Otherwise FastGPT can stream internal JSON or
+  scratch output directly to the user.
+- Only the final user-facing answer node should stream/respond directly. If an
+  internal AI node's output is needed later, consume its `answerText` from a
+  downstream parser, text editor, variable update, or answer node.
+- Use history as conversational texture, not as the only business memory. For
+  deterministic workflow apps that already carry state in explicit variables
+  such as `last_data_pack_json`, prefer `history=0` unless a same-version
+  runtime preview proves higher history values work. A preview error such as
+  `Cannot read properties of undefined (reading 'length')` on a chat node is a
+  signal to remove chat-history dependency first.
 - Separate initial generation and follow-up generation only when the prompts or required inputs are materially different.
 - If follow-up should refine a previous answer, save the previous AI output into a variable such as `last_briefing_card`.
 

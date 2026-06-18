@@ -23,6 +23,9 @@ Production standard:
   validation.
 - Never let LLM reasoning replace backend/API authority for permissions, ACLs,
   identity, or durable business state.
+- Keep internal LLM planner/extractor nodes silent to the user. In FastGPT
+  exports this usually means `isResponseAnswerText=false`; only final answer
+  nodes should stream directly.
 
 ## Quick Start
 
@@ -67,6 +70,7 @@ S01.ELSE -> P00
 ## Authoring Rules
 
 - Preserve exact node shapes from a current FastGPT export whenever possible. Generate IDs and labels, but do not invent unknown schema fields when a seed node can be cloned.
+- Treat Code node executable syntax as runtime-version-specific. Before generating production JSON with `flowNodeType: "code"`, obtain a same-version export of a Code node that has actually preview-run successfully, or avoid the Code node and move the deterministic calculation behind an HTTP helper endpoint.
 - Keep three indexes while editing: `node name -> nodeId`, `variable label -> variable key`, and `node output key -> output id`.
 - Use variable keys, not visible labels, inside JSON references. Visible labels like `login_name` are for humans; references use generated keys under `chatConfig.variables`.
 - Use output IDs, not output keys, in references and interpolations. HTTP output key `success` is not enough; later nodes usually reference that output's `id`.

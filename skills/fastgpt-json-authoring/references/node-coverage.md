@@ -36,7 +36,7 @@ target-environment exports when generating production JSON.
 | Question optimization | `cfr` | Documented, inspector-aware | Outputs `system_text` for retrieval query enhancement. |
 | Dataset quote merge | `datasetConcatNode` | Documented, inspector-aware | Merges multiple `datasetQuote` inputs into one `quoteQA`. |
 | Document parsing | `readFiles` | Documented, inspector-aware | Reads `workflowStart.userFiles`; outputs parsed text and raw response. |
-| Code run | `code` | Documented, inspector-aware | Custom outputs map return-object keys to generated IDs. |
+| Code run | `code` | Inspector-aware, runtime seed-required for executable syntax | Custom outputs map return-object keys to generated IDs, but the code-body wrapper/return convention must be cloned from a same-version node that preview-ran successfully. |
 | Batch run | `loop` | Documented, inspector-aware | Parent uses `childrenNodeIdList`; child flow is `loopStart -> ... -> loopEnd`. |
 | Parallel run | `parallelRun` | Documented, inspector-aware | Uses the same child-flow shape as batch run plus concurrency/retry settings. |
 | Loop start | `loopStart` | Documented, inspector-aware | Inner node; outputs current item and index. |
@@ -56,6 +56,9 @@ claim reliable production authoring coverage:
 
 - Fully parameterized `pluginModule` calls, including dynamic plugin inputs and
   outputs.
+- Code node executable syntax and return wrapper conventions, unless a
+  same-version Code node export has already preview-run successfully in the
+  target FastGPT environment.
 - Plugin app internals such as `pluginInput`, `pluginOutput`, and any
   `appModule` variant if they appear in the target environment.
 - `lafModule`, because the current demo set did not include a Laf function call.
