@@ -156,9 +156,10 @@ high TTFT, compare:
 
 Only after these A/B checks should the latency be attributed to prompt length,
 variable interpolation, model gateway queueing, or FastGPT workflow overhead.
-For qipaoxian/Sangfor exports, `maxToken` tuning is no longer part of this
-diagnostic path; keep the setting disabled/unset in JSON and re-calibrate it
-only in a fresh target environment if the user explicitly asks.
+For qipaoxian/Sangfor exports, `temperature` and `maxToken` tuning are no
+longer part of the default diagnostic path; keep those settings disabled/unset
+in JSON and re-calibrate them only in a fresh target environment if the user
+explicitly asks.
 
 ### chatConfig ObjectId Validation
 

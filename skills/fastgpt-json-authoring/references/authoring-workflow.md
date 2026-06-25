@@ -151,6 +151,9 @@ After import, verify in FastGPT UI:
   can leave the placeholder unresolved in preview.
 - AI-chat optional inputs that the seed omitted are still omitted, not imported
   as visible `null` values.
+- AI-chat `temperature.value` and `maxToken.value` are omitted in generated apps
+  unless the user explicitly asks for those switches or target-version preview
+  proves they are required.
 - Preview reaches each success branch.
 - Preview reaches each error branch.
 - AI nodes receive the expected variables and retrieved references.

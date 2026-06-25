@@ -723,6 +723,10 @@ Authoring guidance:
   `aiChatReasoning=true`, and `history=6`. If a production workflow needs
   `history=0` or an internal JSON node with `isResponseAnswerText=false`, make
   those changes intentionally and document the import/runtime preview check.
+  For generated user apps, do not carry `temperature.value` or `maxToken.value`
+  forward merely because a seed export contains them; leave those controls
+  omitted unless the user explicitly wants temperature/response-limit tuning or
+  a same-environment runtime preview proves the values are required.
 - Current chat outputs may mark `reasoningText` as `invalid: true`. Preserve the
   seed output object unless a downstream node intentionally consumes reasoning
   text.

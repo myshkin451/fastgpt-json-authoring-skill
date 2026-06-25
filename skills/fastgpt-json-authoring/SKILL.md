@@ -71,6 +71,7 @@ S01.ELSE -> P00
 
 - Preserve exact node shapes from a current FastGPT export whenever possible. Generate IDs and labels, but do not invent unknown schema fields when a seed node can be cloned.
 - Preserve field absence vs explicit `null`. Current FastGPT UI exports may omit `value` for optional AI-chat inputs; serializing those same fields as `null` can break newer editors or runtimes.
+- Do not explicitly set AI-chat `temperature.value` or `maxToken.value` in generated apps unless the user requests those controls or a same-environment runtime preview proves they are required. Leaving those values omitted keeps the FastGPT UI temperature/response-limit switches off and avoids project-specific tuning leaking into future apps.
 - For current UI-created `textEditor` nodes, bind upstream values as dynamic inputs and use local `{{field}}` placeholders in the textarea. Preserve runtime metadata such as `customInputConfig` and `canEdit=true` on those custom inputs. Keep the custom input key, label, and placeholder aligned, for example `key=customer_name`, `label=customer_name`, and `{{customer_name}}`; do not use a Chinese label such as `客户名称` with an English placeholder unless a seed proves it works. Do not migrate structured form assembly by pasting direct `{{$node.output$}}` interpolation into the text area unless the target export proves that shape.
 - Treat Code node executable syntax as runtime-version-specific. Before generating production JSON with `flowNodeType: "code"`, obtain a same-version export of a Code node that has actually preview-run successfully, or avoid the Code node and move the deterministic calculation behind an HTTP helper endpoint.
 - Keep three indexes while editing: `node name -> nodeId`, `variable label -> variable key`, and `node output key -> output id`.
@@ -119,6 +120,7 @@ Before final handoff, verify:
 - Current `textEditor` nodes use dynamic inputs with `customInputConfig` and `canEdit=true`, plus local `{{field}}` placeholders when assembling structured form/context text.
 - Current Code custom inputs preserve seed metadata such as `customInputConfig` and `canEdit=true`; missing metadata can make runtime previews pass literal defaults or empty values even when static references resolve.
 - AI-chat optional inputs copied from the seed preserve omitted `value` fields instead of serializing them as `null`.
+- AI-chat `temperature` and `maxToken` inputs do not include explicit `value` fields unless the user or target-environment evidence requires those controls.
 - Loop and parallel nodes have array inputs and a child workflow containing
   `loopStart` and `loopEnd`.
 - Content extraction nodes have outputs for every `extractKeys` field.
