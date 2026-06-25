@@ -28,7 +28,7 @@ target-environment exports when generating production JSON.
 | HTTP request | `httpRequest468` | Documented, inspector-aware | Modern exports may only have `httpRawResponse` and `error` until custom outputs are added; do not require `success/code` universally. |
 | Variable update | `variableUpdate` | Documented | Use for durable workflow state. |
 | Dataset search | `datasetSearchNode` | Documented, inspector-aware | Empty `datasets` is an import action unless intentionally bound. |
-| Text editor | `textEditor` | Documented, inspector-aware | Outputs `system_text`. Current exports may require dynamic inputs plus local `{{field}}` placeholders; inspector warns on direct `{{$node.output$}}` interpolation in the textarea. |
+| Text editor | `textEditor` | Documented, inspector-aware | Outputs `system_text`. Current exports may require dynamic inputs plus local `{{field}}` placeholders; inspector warns on direct `{{$node.output$}}` interpolation and missing dynamic-input runtime metadata. |
 | AI chat | `chatNode` | Documented, inspector-aware | Common outputs: `history`, `answerText`, `reasoningText`, `system_error_text`. Inspector warns on optional AI-chat inputs serialized as `value: null` where current UI exports omit `value`. |
 | Answer | `answerNode` | Documented | Usually terminal in practice. |
 | Question classification | `classifyQuestion` | Documented, inspector-aware | `agents[].key` controls `source-<key>` branch handles. |
@@ -36,7 +36,7 @@ target-environment exports when generating production JSON.
 | Question optimization | `cfr` | Documented, inspector-aware | Outputs `system_text` for retrieval query enhancement. |
 | Dataset quote merge | `datasetConcatNode` | Documented, inspector-aware | Merges multiple `datasetQuote` inputs into one `quoteQA`. |
 | Document parsing | `readFiles` | Documented, inspector-aware | Reads `workflowStart.userFiles`; outputs parsed text and raw response. |
-| Code run | `code` | Inspector-aware, runtime seed-required for executable syntax | Custom outputs map return-object keys to generated IDs. Inspector checks empty code, missing custom outputs, dangling non-terminal Code nodes, `source_catch-right` catch edges when `catchError=true`, and `function main({...})` input/parameter mismatches; the code-body wrapper/return convention must still be cloned from a same-version node that preview-ran successfully. |
+| Code run | `code` | Inspector-aware, runtime seed-required for executable syntax | Custom outputs map return-object keys to generated IDs. Inspector checks empty code, missing custom outputs, dangling non-terminal Code nodes, missing custom-input runtime metadata, `source_catch-right` catch edges when `catchError=true`, and `function main({...})` input/parameter mismatches; the code-body wrapper/return convention must still be cloned from a same-version node that preview-ran successfully. |
 | Batch run | `loop` | Documented, inspector-aware | Parent uses `childrenNodeIdList`; child flow is `loopStart -> ... -> loopEnd`. |
 | Parallel run | `parallelRun` | Documented, inspector-aware | Uses the same child-flow shape as batch run plus concurrency/retry settings. |
 | Loop start | `loopStart` | Documented, inspector-aware | Inner node; outputs current item and index. |

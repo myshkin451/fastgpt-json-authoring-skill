@@ -142,6 +142,10 @@ After import, verify in FastGPT UI:
 - User-select option edges still point to the intended branches.
 - Current-version `textEditor` nodes still show dynamic input parameters and
   local `{{field}}` placeholders rather than stale direct interpolation.
+- TextEditor and Code custom inputs copied from current seeds still preserve
+  runtime metadata such as `customInputConfig` and `canEdit=true`; otherwise
+  preview may leave `{{field}}` placeholders unresolved or pass empty Code
+  parameters despite valid-looking references.
 - AI-chat optional inputs that the seed omitted are still omitted, not imported
   as visible `null` values.
 - Preview reaches each success branch.
@@ -189,6 +193,11 @@ These are observed behaviors, not guaranteed product rules:
   repaired JSON imports but the editor UI shows direct `{{$node.output$}}`
   strings inside the textarea, rebuild that node from a current `textEditor`
   seed before chasing prompt bugs.
+- If a preview shows literal local placeholders such as `{{customer_name}}` in a
+  downstream dataset search or LLM request, inspect the upstream text editor's
+  custom inputs for missing `customInputConfig` and `canEdit=true`. The static
+  reference pair can resolve while the runtime text-concat node still fails to
+  substitute.
 - `null` is not the same as an omitted field in newer AI-chat inputs. If an LLM
   settings panel or preview fails with null/include-style JavaScript errors,
   compare the broken node's optional input objects against a fresh UI-created

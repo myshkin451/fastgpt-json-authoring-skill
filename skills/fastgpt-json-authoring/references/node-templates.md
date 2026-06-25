@@ -521,6 +521,10 @@ serialized as `version=486` with:
 The textarea used local placeholders such as `{{q}}` or `{{customer_name}}`,
 while the custom input carried the real FastGPT reference such as
 `["workflowStart", "userChatInput"]` or `["F02", "customer_name"]`.
+The custom input also carried runtime metadata such as `canEdit: true` and
+`customInputConfig`. Preserve these fields from the seed. Without them, the JSON
+reference can look correct in static inspection while preview output leaves
+literal placeholders like `{{customer_name}}`.
 
 When repairing current-version exports, prefer this pattern:
 
@@ -579,6 +583,11 @@ Authoring guidance:
   used a `source_catch-right` catch branch. Preserve the seed export's edge
   policy: ordinary `source-right` for success paths, and `source_catch-right`
   only when the same-version seed actually has a catch branch.
+- Current Code custom inputs can require the same runtime metadata as other
+  dynamic inputs: preserve `customInputConfig`, `canEdit: true`, and the
+  exported description/default flags from the seed. Missing metadata can make
+  `function main({deckTitle})` receive empty values even when the input value is
+  a valid reference such as `["F05", "deck_title"]`.
 - For the observed JavaScript wrapper `function main({...})`, every destructured
   parameter should have a matching custom Code input key, and every custom input
   consumed by the node should appear in the destructured parameter list. A

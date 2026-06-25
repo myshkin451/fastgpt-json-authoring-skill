@@ -215,6 +215,50 @@ class FastGPTCanvasInspectTests(unittest.TestCase):
 
         self.assertTrue(any("textEditor uses direct" in issue for issue in issues))
 
+    def test_current_dynamic_inputs_need_runtime_metadata(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "T00",
+                    "name": "text",
+                    "flowNodeType": "textEditor",
+                    "inputs": [
+                        {"key": "system_textareaInput", "value": "用户输入：{{q}}"},
+                        {"key": "system_addInputParam"},
+                        {"key": "q", "renderTypeList": ["reference"], "value": ["S00", "userChatInput"]},
+                    ],
+                    "outputs": [{"id": "system_text", "key": "system_text", "valueType": "string"}],
+                },
+                {
+                    "nodeId": "C00",
+                    "name": "code",
+                    "flowNodeType": "code",
+                    "inputs": [
+                        {"key": "system_addInputParam"},
+                        {"key": "data1", "value": ["S00", "userChatInput"]},
+                        {"key": "codeType", "value": "js"},
+                        {"key": "code", "value": "function main({data1}){ return {result: data1}; }"},
+                    ],
+                    "outputs": [{"id": "result", "key": "result", "type": "dynamic", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "T00", "sourceHandle": "S00-source-right", "targetHandle": "T00-target-left"},
+                {"source": "T00", "target": "C00", "sourceHandle": "T00-source-right", "targetHandle": "C00-target-left"},
+                {"source": "C00", "target": "A00", "sourceHandle": "C00-source-right", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        rendered = "\n".join(self.inspector.inspect_export(data)["issues"])
+
+        self.assertIn("textEditor custom input q missing customInputConfig", rendered)
+        self.assertIn("textEditor custom input q should set canEdit=true", rendered)
+        self.assertIn("code custom input data1 missing customInputConfig", rendered)
+        self.assertIn("code custom input data1 should set canEdit=true", rendered)
+
     def test_missing_top_level_shape_is_reported(self) -> None:
         issues = self.inspector.inspect_export({})["issues"]
 

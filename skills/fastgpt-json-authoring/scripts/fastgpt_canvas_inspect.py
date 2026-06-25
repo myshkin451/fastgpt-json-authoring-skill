@@ -37,6 +37,7 @@ CHAT_OPTIONAL_OMIT_VALUE_KEYS = {
     "aiChatResponseFormat",
     "aiChatJsonSchema",
 }
+TEXT_EDITOR_SYSTEM_INPUT_KEYS = {"system_textareaInput", "system_addInputParam"}
 
 
 def load_export(path: Path) -> dict[str, Any]:
@@ -165,6 +166,18 @@ def code_custom_input_keys(node: dict[str, Any]) -> set[str]:
             and str(item["key"]).isidentifier()
         )
     }
+
+
+def dynamic_custom_inputs(node: dict[str, Any], system_keys: set[str]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in as_list(node.get("inputs"))
+        if (
+            isinstance(item, dict)
+            and item.get("key") is not None
+            and str(item["key"]) not in system_keys
+        )
+    ]
 
 
 def js_main_destructured_params(code: str) -> set[str] | None:
@@ -543,6 +556,12 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                     issues.append(f"{node.get('name')}: readFiles output missing {required_output}")
 
         if node_type == "code":
+            for item in dynamic_custom_inputs(node, CODE_SYSTEM_INPUT_KEYS):
+                key = str(item.get("key", ""))
+                if "customInputConfig" not in item:
+                    issues.append(f"{node.get('name')}: code custom input {key} missing customInputConfig")
+                if item.get("canEdit") is not True:
+                    issues.append(f"{node.get('name')}: code custom input {key} should set canEdit=true in current exports")
             code_text = str(get_input(node, "code") or "")
             if not code_text.strip():
                 issues.append(f"{node.get('name')}: code node missing code")
@@ -564,6 +583,12 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                 issues.append(f"{node.get('name')}: code node has no custom dynamic outputs")
 
         if node_type == "textEditor":
+            for item in dynamic_custom_inputs(node, TEXT_EDITOR_SYSTEM_INPUT_KEYS):
+                key = str(item.get("key", ""))
+                if "customInputConfig" not in item:
+                    issues.append(f"{node.get('name')}: textEditor custom input {key} missing customInputConfig")
+                if item.get("canEdit") is not True:
+                    issues.append(f"{node.get('name')}: textEditor custom input {key} should set canEdit=true in current exports")
             text_value = str(get_input(node, "system_textareaInput") or "")
             if TEXT_EDITOR_DIRECT_INTERPOLATION_RE.search(text_value):
                 issues.append(

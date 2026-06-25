@@ -71,7 +71,7 @@ S01.ELSE -> P00
 
 - Preserve exact node shapes from a current FastGPT export whenever possible. Generate IDs and labels, but do not invent unknown schema fields when a seed node can be cloned.
 - Preserve field absence vs explicit `null`. Current FastGPT UI exports may omit `value` for optional AI-chat inputs; serializing those same fields as `null` can break newer editors or runtimes.
-- For current UI-created `textEditor` nodes, bind upstream values as dynamic inputs and use local `{{field}}` placeholders in the textarea. Do not migrate structured form assembly by pasting direct `{{$node.output$}}` interpolation into the text area unless the target export proves that shape.
+- For current UI-created `textEditor` nodes, bind upstream values as dynamic inputs and use local `{{field}}` placeholders in the textarea. Preserve runtime metadata such as `customInputConfig` and `canEdit=true` on those custom inputs. Do not migrate structured form assembly by pasting direct `{{$node.output$}}` interpolation into the text area unless the target export proves that shape.
 - Treat Code node executable syntax as runtime-version-specific. Before generating production JSON with `flowNodeType: "code"`, obtain a same-version export of a Code node that has actually preview-run successfully, or avoid the Code node and move the deterministic calculation behind an HTTP helper endpoint.
 - Keep three indexes while editing: `node name -> nodeId`, `variable label -> variable key`, and `node output key -> output id`.
 - Use variable keys, not visible labels, inside JSON references. Visible labels like `login_name` are for humans; references use generated keys under `chatConfig.variables`.
@@ -116,7 +116,8 @@ Before final handoff, verify:
 - Interpolations like `{{$VARIABLE_NODE_ID.<varKey>$}}` and `{{$<nodeId>.<outputId>$}}` resolve.
 - HTTP nodes have method, URL, headers, JSON body when required, output fields, and planned error handling.
 - Dataset search nodes have selected datasets or an explicit post-import action.
-- Current `textEditor` nodes use dynamic inputs and local `{{field}}` placeholders when assembling structured form/context text.
+- Current `textEditor` nodes use dynamic inputs with `customInputConfig` and `canEdit=true`, plus local `{{field}}` placeholders when assembling structured form/context text.
+- Current Code custom inputs preserve seed metadata such as `customInputConfig` and `canEdit=true`; missing metadata can make runtime previews pass literal defaults or empty values even when static references resolve.
 - AI-chat optional inputs copied from the seed preserve omitted `value` fields instead of serializing them as `null`.
 - Loop and parallel nodes have array inputs and a child workflow containing
   `loopStart` and `loopEnd`.
