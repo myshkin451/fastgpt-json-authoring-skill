@@ -526,6 +526,22 @@ The custom input also carried runtime metadata such as `canEdit: true` and
 reference can look correct in static inspection while preview output leaves
 literal placeholders like `{{customer_name}}`.
 
+Keep the custom input key, label, and placeholder aligned. The safest current
+shape is:
+
+```json
+{"key": "customer_name", "label": "customer_name", "value": ["F05", "customer_name"]}
+```
+
+```text
+客户名称：{{customer_name}}
+```
+
+Do not set `label` to a friendly Chinese caption such as `客户名称` while using
+`{{customer_name}}` in the textarea. In current previews this can leave the
+placeholder unresolved. Keep human-friendly Chinese labels on the upstream form
+field, not on the text editor's dynamic input alias.
+
 When repairing current-version exports, prefer this pattern:
 
 ```text

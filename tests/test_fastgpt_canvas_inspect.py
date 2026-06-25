@@ -259,6 +259,42 @@ class FastGPTCanvasInspectTests(unittest.TestCase):
         self.assertIn("code custom input data1 missing customInputConfig", rendered)
         self.assertIn("code custom input data1 should set canEdit=true", rendered)
 
+    def test_text_editor_placeholder_should_match_custom_input_name(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "T00",
+                    "name": "text",
+                    "flowNodeType": "textEditor",
+                    "inputs": [
+                        {"key": "system_textareaInput", "value": "客户名称：{{customer_name}}\n标题：{{missing_title}}"},
+                        {"key": "system_addInputParam"},
+                        {
+                            "key": "customer_name",
+                            "label": "客户名称",
+                            "renderTypeList": ["reference"],
+                            "value": ["S00", "userChatInput"],
+                            "customInputConfig": {},
+                            "canEdit": True,
+                        },
+                    ],
+                    "outputs": [{"id": "system_text", "key": "system_text", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "T00", "sourceHandle": "S00-source-right", "targetHandle": "T00-target-left"},
+                {"source": "T00", "target": "A00", "sourceHandle": "T00-source-right", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        rendered = "\n".join(self.inspector.inspect_export(data)["issues"])
+
+        self.assertIn("label 客户名称 differs from key", rendered)
+        self.assertIn("placeholder {{missing_title}} has no matching custom input", rendered)
+
     def test_missing_top_level_shape_is_reported(self) -> None:
         issues = self.inspector.inspect_export({})["issues"]
 

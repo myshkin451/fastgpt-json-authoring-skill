@@ -146,6 +146,9 @@ After import, verify in FastGPT UI:
   runtime metadata such as `customInputConfig` and `canEdit=true`; otherwise
   preview may leave `{{field}}` placeholders unresolved or pass empty Code
   parameters despite valid-looking references.
+- TextEditor custom input key, label, and textarea placeholder are aligned. A
+  mismatch such as label `客户名称` with textarea placeholder `{{customer_name}}`
+  can leave the placeholder unresolved in preview.
 - AI-chat optional inputs that the seed omitted are still omitted, not imported
   as visible `null` values.
 - Preview reaches each success branch.

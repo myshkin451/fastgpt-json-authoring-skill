@@ -22,6 +22,7 @@ BUILTIN_NODE_OUTPUT_VALUE_TYPES = {
 }
 SECRET_HEADER_KEYS = {"authorization", "x-agent-token", "x-api-key", "api-key"}
 INTERPOLATION_RE = re.compile(r"\{\{\$([^.{}$]+)\.([^{}$]+)\$\}\}")
+LOCAL_PLACEHOLDER_RE = re.compile(r"\{\{([^{}$][^{}]*)\}\}")
 OBJECT_ID_RE = re.compile(r"^[0-9a-fA-F]{24}$")
 TEXT_EDITOR_DIRECT_INTERPOLATION_RE = re.compile(r"\{\{\$[^.{}$]+\.[^{}$]+\$\}\}")
 UPSTREAM_TARGET_RE = re.compile(r"(G00|M00|menu|gate|entry|入口|菜单|确认门)", re.IGNORECASE)
@@ -583,13 +584,29 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                 issues.append(f"{node.get('name')}: code node has no custom dynamic outputs")
 
         if node_type == "textEditor":
-            for item in dynamic_custom_inputs(node, TEXT_EDITOR_SYSTEM_INPUT_KEYS):
+            text_custom_inputs = dynamic_custom_inputs(node, TEXT_EDITOR_SYSTEM_INPUT_KEYS)
+            custom_names: set[str] = set()
+            for item in text_custom_inputs:
                 key = str(item.get("key", ""))
+                label = str(item.get("label", ""))
+                if key:
+                    custom_names.add(key)
+                if label:
+                    custom_names.add(label)
+                if key and label and key != label:
+                    issues.append(
+                        f"{node.get('name')}: textEditor custom input {key} label {label} differs from key; current placeholder substitution is safest when key=label=placeholder"
+                    )
                 if "customInputConfig" not in item:
                     issues.append(f"{node.get('name')}: textEditor custom input {key} missing customInputConfig")
                 if item.get("canEdit") is not True:
                     issues.append(f"{node.get('name')}: textEditor custom input {key} should set canEdit=true in current exports")
             text_value = str(get_input(node, "system_textareaInput") or "")
+            for placeholder in sorted({match.strip() for match in LOCAL_PLACEHOLDER_RE.findall(text_value) if match.strip()}):
+                if placeholder not in custom_names:
+                    issues.append(
+                        f"{node.get('name')}: textEditor placeholder {{{{{placeholder}}}}} has no matching custom input key/label"
+                    )
             if TEXT_EDITOR_DIRECT_INTERPOLATION_RE.search(text_value):
                 issues.append(
                     f"{node.get('name')}: textEditor uses direct {{$node.output$}} interpolation; current UI-created textEditor nodes should bind dynamic inputs and use local {{field}} placeholders"
