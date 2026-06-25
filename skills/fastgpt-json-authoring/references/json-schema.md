@@ -34,6 +34,12 @@ A FastGPT app export is a JSON object with three primary keys:
 
 Exports may be UTF-8 with BOM. Read with `utf-8-sig` in Python.
 
+Some FastGPT imports validate `chatConfig._id` as a Mongo-style ObjectId. When
+emitting `_id`, use a 24-character hexadecimal string. Do not use a human slug
+such as `micro-gateway-ui-default`; imports can fail with
+`Cast to ObjectId failed`. If the target export includes `_id`, preserve or
+regenerate a valid ObjectId-like value.
+
 ## Global Variables
 
 Variables live under `chatConfig.variables`.
@@ -149,6 +155,17 @@ Text interpolation uses:
 Do not write `{{$login_name$}}` unless a specific node field documents that syntax. For most canvas references, use the generated IDs.
 
 HTTP JSON bodies can also contain placeholders for that HTTP node's custom variables, such as `{{login_name}}`. Those names are local request parameters, not global variable labels.
+
+Some current UI-created text editor nodes also use local placeholders such as
+`{{customer_name}}`, but only after that field has been declared as a dynamic
+input on the same text editor node. Do not confuse these local placeholders with
+global FastGPT interpolation. In current `textEditor version=486` exports, the
+dynamic input owns the real reference array and the textarea uses the local
+placeholder.
+
+Preserve missing fields as missing fields. For example, current AI-chat exports
+may include an input object such as `quotePrompt` without a `value` key. Do not
+normalize it to `"value": null` unless the target export actually does so.
 
 ## Edge Handles
 

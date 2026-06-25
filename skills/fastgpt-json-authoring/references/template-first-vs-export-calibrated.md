@@ -122,6 +122,52 @@ Dataset IDs are environment-specific. A generated app can still be valuable with
 after import. The inspector should flag this as an action item, not always a
 fatal schema error.
 
+### AI Chat Node Drift
+
+FastGPT UI-created AI chat nodes can gain inputs before older generators catch
+up. A 2026-06-22 FastGPT 4.9.7 UI export used an 18-input `chatNode` including
+`quoteQA`; an older project generator still emitted a 17-input shape without
+`quoteQA`. The 17-input node may parse and import, but for production repair the
+UI-created same-environment export should win.
+
+Drift can also happen inside fields that still have the same keys. In a
+2026-06-24 current export, optional inputs such as `quotePrompt` and
+`aiChatResponseFormat` were present but omitted the `value` field. A generated
+file that writes those same inputs as `"value": null` is not equivalent; newer
+UI code may call string/list methods on the field and fail with null-related
+errors. Preserve omission vs explicit `null` when cloning a seed.
+
+The same export showed `textEditor version=486` using dynamic inputs and local
+`{{field}}` placeholders. A template-first generator that writes direct
+`{{$F02.customer_name$}}` interpolation into the textarea may parse, but it no
+longer matches the editor shape users will see and maintain.
+
+Do not assume a fast minimal chat-node preview proves that a larger workflow's
+LLM latency is only model-side. Minimal nodes often use static prompt text and
+default `temperature/maxToken` values, while production nodes may rely on
+runtime interpolation from variables and upstream node outputs. When diagnosing
+high TTFT, compare:
+
+- static short prompt vs static long prompt;
+- static long prompt vs the same prompt assembled through references;
+- UI-default chat node settings vs generated settings;
+- isolated chat node vs the real branch after HTTP, Code, and variable-update
+  nodes.
+
+Only after these A/B checks should the latency be attributed to prompt length,
+variable interpolation, model gateway queueing, or FastGPT workflow overhead.
+For qipaoxian/Sangfor exports, `maxToken` tuning is no longer part of this
+diagnostic path; keep the setting disabled/unset in JSON and re-calibrate it
+only in a fresh target environment if the user explicitly asks.
+
+### chatConfig ObjectId Validation
+
+Some imports validate `chatConfig._id` as a Mongo-style ObjectId. A generated
+human-readable slug such as `micro-gateway-ui-default` can pass JSON parsing and
+schema-like structural checks but fail FastGPT import with
+`Cast to ObjectId failed`. Either preserve the UI export's existing `_id` or
+emit a 24-character hexadecimal string.
+
 ## Public Messaging
 
 Fair comparison language:

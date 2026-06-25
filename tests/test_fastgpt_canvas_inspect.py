@@ -89,6 +89,132 @@ class FastGPTCanvasInspectTests(unittest.TestCase):
 
         self.assertTrue(any("unknown output missingOutput" in issue for issue in issues))
 
+    def test_code_main_params_must_match_declared_inputs(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "C00",
+                    "name": "code",
+                    "flowNodeType": "code",
+                    "inputs": [
+                        {"key": "system_addInputParam"},
+                        {"key": "data1", "value": ["S00", "userChatInput"]},
+                        {"key": "data2", "value": ["S00", "userChatInput"]},
+                        {"key": "codeType", "value": "js"},
+                        {"key": "code", "value": "function main({data1, missing}){ return {result: data1}; }"},
+                    ],
+                    "outputs": [{"id": "result", "key": "result", "type": "dynamic", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "C00", "sourceHandle": "S00-source-right", "targetHandle": "C00-target-left"},
+                {"source": "C00", "target": "A00", "sourceHandle": "C00-source-right", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+        rendered = "\n".join(issues)
+
+        self.assertIn("code main() params not declared as inputs: missing", rendered)
+        self.assertIn("code inputs not accepted by main(): data2", rendered)
+
+    def test_non_terminal_dangling_node_is_reported(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {"nodeId": "V00", "name": "save state", "flowNodeType": "variableUpdate", "inputs": [{"key": "updateList", "value": []}], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "V00", "sourceHandle": "S00-source-right", "targetHandle": "V00-target-left"}
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertTrue(any("save state: non-terminal node has no outgoing edge" in issue for issue in issues))
+
+    def test_code_catch_edge_is_valid_when_catch_error_is_enabled(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "C00",
+                    "name": "code",
+                    "flowNodeType": "code",
+                    "catchError": True,
+                    "inputs": [
+                        {"key": "system_addInputParam"},
+                        {"key": "data1", "value": ["S00", "userChatInput"]},
+                        {"key": "codeType", "value": "js"},
+                        {"key": "code", "value": "function main({data1}){ return {result: data1}; }"},
+                    ],
+                    "outputs": [{"id": "result", "key": "result", "type": "dynamic", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "C00", "sourceHandle": "S00-source-right", "targetHandle": "C00-target-left"},
+                {"source": "C00", "target": "A00", "sourceHandle": "C00-source_catch-right", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertFalse(any("ordinary node sourceHandle" in issue for issue in issues))
+
+    def test_chat_node_optional_null_values_are_reported(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {
+                    "nodeId": "C00",
+                    "name": "chat",
+                    "flowNodeType": "chatNode",
+                    "inputs": [
+                        {"key": "model", "value": "deepseek-v4-flash"},
+                        {"key": "systemPrompt", "value": "hello"},
+                        {"key": "userChatInput", "value": "hello"},
+                        {"key": "quotePrompt", "value": None},
+                    ],
+                    "outputs": [{"id": "answerText", "key": "answerText", "valueType": "string"}],
+                }
+            ],
+            "edges": [],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertTrue(any("quotePrompt has value null" in issue for issue in issues))
+
+    def test_text_editor_direct_interpolation_is_reported(self) -> None:
+        data = {
+            "chatConfig": {"variables": []},
+            "nodes": [
+                {"nodeId": "S00", "name": "start", "flowNodeType": "workflowStart", "inputs": [], "outputs": [{"id": "userChatInput", "key": "userChatInput", "valueType": "string"}]},
+                {
+                    "nodeId": "T00",
+                    "name": "text",
+                    "flowNodeType": "textEditor",
+                    "inputs": [{"key": "system_textareaInput", "value": "用户输入：{{$S00.userChatInput$}}"}],
+                    "outputs": [{"id": "system_text", "key": "system_text", "valueType": "string"}],
+                },
+                {"nodeId": "A00", "name": "answer", "flowNodeType": "answerNode", "inputs": [], "outputs": []},
+            ],
+            "edges": [
+                {"source": "S00", "target": "T00", "sourceHandle": "S00-source-right", "targetHandle": "T00-target-left"},
+                {"source": "T00", "target": "A00", "sourceHandle": "T00-source-right", "targetHandle": "A00-target-left"},
+            ],
+        }
+
+        issues = self.inspector.inspect_export(data)["issues"]
+
+        self.assertTrue(any("textEditor uses direct" in issue for issue in issues))
+
     def test_missing_top_level_shape_is_reported(self) -> None:
         issues = self.inspector.inspect_export({})["issues"]
 

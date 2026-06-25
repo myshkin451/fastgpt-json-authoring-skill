@@ -22,8 +22,21 @@ BUILTIN_NODE_OUTPUT_VALUE_TYPES = {
 }
 SECRET_HEADER_KEYS = {"authorization", "x-agent-token", "x-api-key", "api-key"}
 INTERPOLATION_RE = re.compile(r"\{\{\$([^.{}$]+)\.([^{}$]+)\$\}\}")
+OBJECT_ID_RE = re.compile(r"^[0-9a-fA-F]{24}$")
+TEXT_EDITOR_DIRECT_INTERPOLATION_RE = re.compile(r"\{\{\$[^.{}$]+\.[^{}$]+\$\}\}")
 UPSTREAM_TARGET_RE = re.compile(r"(G00|M00|menu|gate|entry|入口|菜单|确认门)", re.IGNORECASE)
 DOWNSTREAM_SOURCE_RE = re.compile(r"(N00|A12|next|follow|switch|下一步|追问)", re.IGNORECASE)
+TERMINAL_NODE_TYPES = {"answerNode", "chatNode", "userGuide", "customFeedback", "stopTool", "loopEnd"}
+CODE_SYSTEM_INPUT_KEYS = {"system_addInputParam", "codeType", "code"}
+JS_MAIN_DESTRUCTURED_RE = re.compile(r"function\s+main\s*\(\s*\{([^}]*)\}")
+CHAT_OPTIONAL_OMIT_VALUE_KEYS = {
+    "quoteTemplate",
+    "quotePrompt",
+    "aiChatTopP",
+    "aiChatStopSign",
+    "aiChatResponseFormat",
+    "aiChatJsonSchema",
+}
 
 
 def load_export(path: Path) -> dict[str, Any]:
@@ -46,6 +59,13 @@ def get_input(node: dict[str, Any], key: str) -> Any:
     for item in as_list(node.get("inputs")):
         if isinstance(item, dict) and item.get("key") == key:
             return item.get("value")
+    return None
+
+
+def input_item(node: dict[str, Any], key: str) -> dict[str, Any] | None:
+    for item in as_list(node.get("inputs")):
+        if isinstance(item, dict) and item.get("key") == key:
+            return item
     return None
 
 
@@ -134,6 +154,36 @@ def node_input_keys(node: dict[str, Any]) -> set[str]:
     }
 
 
+def code_custom_input_keys(node: dict[str, Any]) -> set[str]:
+    return {
+        str(item["key"])
+        for item in as_list(node.get("inputs"))
+        if (
+            isinstance(item, dict)
+            and item.get("key") is not None
+            and str(item["key"]) not in CODE_SYSTEM_INPUT_KEYS
+            and str(item["key"]).isidentifier()
+        )
+    }
+
+
+def js_main_destructured_params(code: str) -> set[str] | None:
+    match = JS_MAIN_DESTRUCTURED_RE.search(code)
+    if not match:
+        return None
+    params: set[str] = set()
+    for raw_part in match.group(1).split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        name = part.split("=", 1)[0].strip()
+        if ":" in name:
+            name = name.split(":", 1)[0].strip().strip("\"'")
+        if name.isidentifier():
+            params.add(name)
+    return params
+
+
 def builtin_node_output_value_type(node: dict[str, Any], output_key: str) -> str | None:
     node_type = str(node.get("flowNodeType", ""))
     return BUILTIN_NODE_OUTPUT_VALUE_TYPES.get(node_type, {}).get(output_key)
@@ -215,6 +265,9 @@ def source_handle_issue(
             return "HTTP sourceHandle should be source-right or source_catch-right"
         return None
 
+    if source_node.get("catchError") is True and handle == f"{source}-source_catch-right":
+        return None
+
     if handle != expected_right:
         output_suffix = handle.removeprefix(f"{source}-source-")
         if output_suffix in valid_output_ids.get(source, set()):
@@ -287,6 +340,10 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
         issues.append("top-level edges should be an array")
 
     chat_config = as_dict(data.get("chatConfig"))
+    if "_id" in chat_config:
+        chat_config_id = chat_config.get("_id")
+        if not (isinstance(chat_config_id, str) and OBJECT_ID_RE.fullmatch(chat_config_id)):
+            issues.append("chatConfig._id should be a 24-character hexadecimal ObjectId string")
     nodes = [node for node in as_list(data.get("nodes")) if isinstance(node, dict)]
     edges = [edge for edge in as_list(data.get("edges")) if isinstance(edge, dict)]
     if "variables" in chat_config and not isinstance(chat_config.get("variables"), list):
@@ -336,6 +393,13 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
         for edge in edges
         if str(edge.get("sourceHandle", "")).endswith("-source_catch-right")
     }
+    outgoing_sources = Counter(str(edge.get("source", "")) for edge in edges)
+
+    for node in nodes:
+        node_id = str(node.get("nodeId", ""))
+        node_type = str(node.get("flowNodeType", ""))
+        if node_id and node_type not in TERMINAL_NODE_TYPES and outgoing_sources[node_id] == 0:
+            issues.append(f"{node.get('name', node_id)}: non-terminal node has no outgoing edge")
 
     for index, edge in enumerate(edges, 1):
         source = str(edge.get("source", ""))
@@ -479,8 +543,18 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
                     issues.append(f"{node.get('name')}: readFiles output missing {required_output}")
 
         if node_type == "code":
-            if not str(get_input(node, "code") or "").strip():
+            code_text = str(get_input(node, "code") or "")
+            if not code_text.strip():
                 issues.append(f"{node.get('name')}: code node missing code")
+            code_params = js_main_destructured_params(code_text)
+            input_keys = code_custom_input_keys(node)
+            if code_params is not None:
+                missing_inputs = sorted(code_params - input_keys)
+                unused_inputs = sorted(input_keys - code_params)
+                if missing_inputs:
+                    issues.append(f"{node.get('name')}: code main() params not declared as inputs: {', '.join(missing_inputs)}")
+                if unused_inputs:
+                    issues.append(f"{node.get('name')}: code inputs not accepted by main(): {', '.join(unused_inputs)}")
             dynamic_outputs = [
                 output
                 for output in as_list(node.get("outputs"))
@@ -488,6 +562,13 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
             ]
             if not dynamic_outputs:
                 issues.append(f"{node.get('name')}: code node has no custom dynamic outputs")
+
+        if node_type == "textEditor":
+            text_value = str(get_input(node, "system_textareaInput") or "")
+            if TEXT_EDITOR_DIRECT_INTERPOLATION_RE.search(text_value):
+                issues.append(
+                    f"{node.get('name')}: textEditor uses direct {{$node.output$}} interpolation; current UI-created textEditor nodes should bind dynamic inputs and use local {{field}} placeholders"
+                )
 
         if node_type in {"loop", "parallelRun"}:
             loop_input = get_input(node, "loopInputArray")
@@ -535,6 +616,19 @@ def inspect_export(data: dict[str, Any]) -> dict[str, Any]:
 
         if node_type == "customFeedback" and not str(get_input(node, "system_textareaInput") or "").strip():
             issues.append(f"{node.get('name')}: customFeedback missing feedback text")
+
+        if node_type == "chatNode":
+            for key in sorted(CHAT_OPTIONAL_OMIT_VALUE_KEYS):
+                item = input_item(node, key)
+                if item is not None and "value" in item and item.get("value") is None:
+                    issues.append(
+                        f"{node.get('name')}: chatNode optional input {key} has value null; current UI exports omit the value field instead of serializing null"
+                    )
+            max_token = get_input(node, "maxToken")
+            if isinstance(max_token, (int, float)) and max_token > 2048:
+                issues.append(
+                    f"{node.get('name')}: chatNode maxToken={max_token} may exceed the model/UI response limit; current qipaoxian policy is to leave this setting disabled/unset"
+                )
 
     return {
         "top_level_keys": list(data.keys()),

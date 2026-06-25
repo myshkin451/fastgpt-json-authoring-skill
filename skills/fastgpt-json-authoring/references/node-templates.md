@@ -176,6 +176,14 @@ Minimum completeness checklist:
 
 Secret rule: configure real tokens in the FastGPT UI or deployment environment, not in public JSON examples.
 
+Query parameter rule: if the current FastGPT version shows query parameters in
+the HTTP node's Params table, write the raw logical value there and let the
+platform perform URL encoding. Do not pre-encode Chinese or other non-ASCII
+values in Params. For example, qipaoxian `GetRights` should use URL
+`/API/UserNew/GetRights` with Params `category=日报`, not Params
+`category=%E6%97%A5%E6%8A%A5`. Some editors auto-migrate URL query strings into
+Params, so re-check the post-import preview details.
+
 Observed header variable interpolation:
 
 ```json
@@ -501,6 +509,31 @@ Use for:
 
 Prefer text editor nodes over embedding large interpolation strings in many different nodes.
 
+Current UI-created text editor nodes may use a dynamic-input shape instead of a
+single textarea-only shape. In a 2026-06-24 FastGPT export, `textEditor`
+serialized as `version=486` with:
+
+- `system_textareaInput`
+- `system_addInputParam`
+- one custom input per upstream value, each with `renderTypeList:
+  ["reference"]`
+
+The textarea used local placeholders such as `{{q}}` or `{{customer_name}}`,
+while the custom input carried the real FastGPT reference such as
+`["workflowStart", "userChatInput"]` or `["F02", "customer_name"]`.
+
+When repairing current-version exports, prefer this pattern:
+
+```text
+Form field -> textEditor custom input customer_name
+Textarea: 客户名称：{{customer_name}}
+```
+
+Do not paste direct FastGPT interpolation such as `{{$F02.customer_name$}}`
+inside the textarea unless the target environment's own export proves that
+shape. Direct interpolation can parse as JSON but drift from the current editor
+shape and make later UI edits fragile.
+
 ## Code
 
 Purpose: transform data, build arrays for batch/parallel nodes, normalize JSON,
@@ -538,6 +571,19 @@ Authoring guidance:
 - Code node JSON shape and executable syntax are not enough to validate each
   other. Same-version exports can show inputs and outputs, while the code body
   still needs a target-environment preview run that proves it returns an object.
+- In the 2026-06-22 qipaoxian community export, Code nodes used ordinary
+  `source-right` edges for their success path and did not add parallel Code
+  `source_catch-right` edges. Treat generated Code catch edges as target-version
+  suspicious unless a current same-environment export proves they are expected.
+- In a 2026-06-24 current FastGPT export, a Code node with `catchError=true`
+  used a `source_catch-right` catch branch. Preserve the seed export's edge
+  policy: ordinary `source-right` for success paths, and `source_catch-right`
+  only when the same-version seed actually has a catch branch.
+- For the observed JavaScript wrapper `function main({...})`, every destructured
+  parameter should have a matching custom Code input key, and every custom input
+  consumed by the node should appear in the destructured parameter list. A
+  mismatch can import cleanly while the node returns empty or fallback values at
+  runtime.
 - Return an object/dict from code. Add one custom output per key that
   downstream nodes need.
 - Do not infer whether JavaScript should be a bare `return {}`, `async
@@ -630,6 +676,31 @@ Purpose: LLM generation.
 
 Authoring guidance:
 
+- Prefer cloning a current same-environment UI-created AI chat node before
+  generating production chat nodes. In a FastGPT 4.9.7 export captured on
+  2026-06-22, the UI-created chat node had 18 inputs in this order:
+  `model`, `temperature`, `maxToken`, `isResponseAnswerText`,
+  `aiChatQuoteRole`, `quoteTemplate`, `quotePrompt`, `aiChatVision`,
+  `aiChatReasoning`, `aiChatTopP`, `aiChatStopSign`,
+  `aiChatResponseFormat`, `aiChatJsonSchema`, `systemPrompt`, `history`,
+  `quoteQA`, `fileUrlList`, `userChatInput`. Older generated templates that
+  omit `quoteQA` should be treated as stale for that environment, even if they
+  still import.
+- Preserve optional-field omission exactly. In a 2026-06-24 current FastGPT
+  export, optional AI-chat inputs such as `quoteTemplate`, `quotePrompt`,
+  `aiChatTopP`, `aiChatStopSign`, `aiChatResponseFormat`, and
+  `aiChatJsonSchema` were present as input objects but had no `value` key. Do
+  not serialize those as `"value": null`; newer UI/runtime code can treat null
+  differently from an omitted value.
+- Treat model and generation settings as seed-specific, not global defaults. The
+  2026-06-24 minimal chat export used `model=deepseek-v4-flash`,
+  `temperature=0`, `maxToken=2000`, `aiChatVision=true`,
+  `aiChatReasoning=true`, and `history=6`. If a production workflow needs
+  `history=0` or an internal JSON node with `isResponseAnswerText=false`, make
+  those changes intentionally and document the import/runtime preview check.
+- Current chat outputs may mark `reasoningText` as `invalid: true`. Preserve the
+  seed output object unless a downstream node intentionally consumes reasoning
+  text.
 - Feed AI nodes explicit business state: customer briefing, retrieved references, current question, branch name, and last generated card if needed.
 - Internal AI nodes such as planners, routers, JSON extractors, scorers, and
   summarizers that feed downstream deterministic nodes must set
@@ -644,8 +715,45 @@ Authoring guidance:
   runtime preview proves higher history values work. A preview error such as
   `Cannot read properties of undefined (reading 'length')` on a chat node is a
   signal to remove chat-history dependency first.
+- Treat explicit generation parameters as runtime hypotheses, not harmless
+  schema details. A same-environment minimal chat node may export with no
+  `temperature.value` or `maxToken.value`; in one Sangfor/FastGPT 4.9.7 preview
+  on 2026-06-22, the missing `maxToken` value was reported at runtime as
+  `最大响应 tokens: 1` and the node finished with `超出回复限制`. The qipaoxian
+  project decision after that test was to stop using `maxToken` as a repair
+  lever: keep the setting disabled/unset in JSON, do not tune it through imports,
+  and re-calibrate AI chat node behavior on a clean/community FastGPT instance.
+- Be conservative with imported `maxToken` values. Some FastGPT versions validate
+  the model's response limit when opening the LLM node settings panel; an
+  oversized imported `maxToken` can make the panel fail with a "response limit"
+  style error. For qipaoxian exports, do not set this field explicitly unless the
+  user reopens this line of investigation in a new target environment.
 - Separate initial generation and follow-up generation only when the prompts or required inputs are materially different.
 - If follow-up should refine a previous answer, save the previous AI output into a variable such as `last_briefing_card`.
+
+Latency investigation pattern:
+
+```text
+T0 Static minimal chat
+Start -> Chat, static short prompt, same model, no upstream variables.
+
+T1 Static long chat
+Start -> Chat, static prompt containing the same business context as the slow node.
+
+T2 Variable-interpolated chat
+Start -> variable/text/code setup -> Chat with the same prompt text assembled
+through FastGPT references such as {{$VARIABLE_NODE_ID.varKey$}} or
+{{$UPSTREAM_NODE.outputId$}}.
+
+T3 Current business node
+The real production branch.
+```
+
+If T0 and T1 are fast but T2/T3 show 100s+ TTFT, inspect FastGPT reference
+resolution, upstream node timing, variable size/serialization, and chat-node
+configuration before changing the business prompt. If all variants show
+occasional 100s+ TTFT, treat it as model gateway/platform queueing until proven
+otherwise.
 
 Observed knowledge-base quote binding:
 

@@ -140,9 +140,20 @@ After import, verify in FastGPT UI:
 - HTTP headers are configured.
 - Custom HTTP outputs are still present.
 - User-select option edges still point to the intended branches.
+- Current-version `textEditor` nodes still show dynamic input parameters and
+  local `{{field}}` placeholders rather than stale direct interpolation.
+- AI-chat optional inputs that the seed omitted are still omitted, not imported
+  as visible `null` values.
 - Preview reaches each success branch.
 - Preview reaches each error branch.
 - AI nodes receive the expected variables and retrieved references.
+- For latency-sensitive AI nodes, record time-to-first-token and total duration
+  across repeated runs. If a UI-created minimal chat node is fast but a
+  production chat node is intermittently slow, create A/B preview branches that
+  isolate static prompt text, variable-interpolated prompt text, and upstream
+  Code/variable-update steps. Do not use qipaoxian JSON imports to tune
+  `maxToken`; keep that setting disabled unless a new target environment is
+  explicitly being calibrated.
 
 Use the exact readiness labels from `industrial-authoring.md` in the handoff:
 `static-validated`, `import-validated`, and `runtime-validated`.
@@ -158,3 +169,30 @@ These are observed behaviors, not guaranteed product rules:
 - Some canvas loops or downstream-to-upstream reconnections may import but behave inconsistently at runtime. Prefer simple forward flow with explicit re-entry on the next user message.
 - Dataset IDs and model IDs are environment-specific. A public example should not pretend they are portable.
 - HTTP node output fields have generated IDs. A visible key such as `success` is not enough for downstream references.
+- A chat node can import with a stale but tolerated shape. For example, an older
+  generated FastGPT 4.9.7 `chatNode` without `quoteQA` parsed, while a current
+  UI-created node exported 18 inputs including `quoteQA`. Prefer the current UI
+  seed for repairs and generators.
+- A partial UI canvas can be an excellent shape seed while still being an
+  incomplete workflow. In the 2026-06-22 qipaoxian community export, the graph
+  imported cleanly and inspector shape checks passed, but the business branch
+  ended at a non-terminal Code node and several downstream answer_context nodes
+  were absent. Check dangling non-terminal nodes before treating an export as a
+  repair base.
+- Code node success edges in the qipaoxian community export used ordinary
+  `source-right`. Do not add Code `source_catch-right` edges just because HTTP
+  nodes use catch branches; preserve the current export's edge policy.
+- Current Code exports can use `source_catch-right` when `catchError=true`.
+  Treat Code catch branches as seed-specific: preserve them when present in the
+  same-version export, and do not infer them from HTTP behavior alone.
+- A current text editor can use dynamic inputs plus local placeholders. If a
+  repaired JSON imports but the editor UI shows direct `{{$node.output$}}`
+  strings inside the textarea, rebuild that node from a current `textEditor`
+  seed before chasing prompt bugs.
+- `null` is not the same as an omitted field in newer AI-chat inputs. If an LLM
+  settings panel or preview fails with null/include-style JavaScript errors,
+  compare the broken node's optional input objects against a fresh UI-created
+  chat node.
+- High TTFT with modest token counts is not explained by token volume alone.
+  Check model gateway queueing, explicit generation settings, variable
+  interpolation, and upstream workflow timing separately.
